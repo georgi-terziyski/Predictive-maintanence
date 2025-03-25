@@ -1,0 +1,135 @@
+{
+  "date": "2024-07-15",
+  "machine_id": "M001",
+  "predictions": [
+    {
+      "timestamp": "2024-07-15 00:00:00",
+      "status": "warning",
+      "failure_predictions": [
+        {
+          "failure_type": "Bearing Failure",
+          "detection": {
+            "detected": true,
+            "probability": 0.82,
+            "confidence": "high"
+          },
+          "regression": {
+            "hours_to_failure": 54.3,
+            "confidence_interval": [48.7, 59.2]
+          },
+          "bayesian_update": {
+            "hours_to_failure": 53.8,
+            "prior_prediction": null,
+            "confidence_change": null
+          },
+          "action_recommendation": {
+            "action": "schedule_maintenance",
+            "urgency": "medium",
+            "recommended_before": "2024-07-17 06:00:00"
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2024-07-15 00:30:00",
+      "status": "warning",
+      "failure_predictions": [
+        {
+          "failure_type": "Bearing Failure",
+          "detection": {
+            "detected": true,
+            "probability": 0.85,
+            "confidence": "high"
+          },
+          "regression": {
+            "hours_to_failure": 53.7,
+            "confidence_interval": [48.2, 58.5]
+          },
+          "bayesian_update": {
+            "hours_to_failure": 53.4,
+            "prior_prediction": 53.8,
+            "confidence_change": "increasing"
+          },
+          "action_recommendation": {
+            "action": "schedule_maintenance",
+            "urgency": "medium",
+            "recommended_before": "2024-07-17 06:00:00"
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2024-07-15 12:30:00",
+      "status": "alert",
+      "failure_predictions": [
+        {
+          "failure_type": "Bearing Failure",
+          "detection": {
+            "detected": true,
+            "probability": 0.92,
+            "confidence": "very_high"
+          },
+          "regression": {
+            "hours_to_failure": 41.4,
+            "confidence_interval": [39.1, 43.2]
+          },
+          "bayesian_update": {
+            "hours_to_failure": 41.2,
+            "prior_prediction": 42.1,
+            "confidence_change": "increasing"
+          },
+          "action_recommendation": {
+            "action": "immediate_maintenance",
+            "urgency": "high",
+            "recommended_before": "2024-07-17 06:00:00"
+          }
+        },
+        {
+          "failure_type": "Overheating",
+          "detection": {
+            "detected": true,
+            "probability": 0.63,
+            "confidence": "medium"
+          },
+          "regression": {
+            "hours_to_failure": 27.8,
+            "confidence_interval": [22.4, 35.1]
+          },
+          "bayesian_update": {
+            "hours_to_failure": 28.2,
+            "prior_prediction": null,
+            "confidence_change": null
+          },
+          "action_recommendation": {
+            "action": "additional_monitoring",
+            "urgency": "medium",
+            "recommended_before": null
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2024-07-15 23:30:00",
+      "status": "normal",
+      "failure_predictions": []
+    }
+  ],
+  "summary": {
+    "normal_periods": 25,
+    "warning_periods": 15,
+    "alert_periods": 8,
+    "detected_failure_types": ["Bearing Failure", "Overheating"],
+    "earliest_predicted_failure": {
+      "failure_type": "Overheating",
+      "predicted_at": "2024-07-15 12:30:00",
+      "estimated_time": "2024-07-16 16:18:00",
+      "confidence": "medium"
+    },
+    "most_critical_failure": {
+      "failure_type": "Bearing Failure",
+      "predicted_at": "2024-07-15 20:30:00",
+      "estimated_time": "2024-07-17 05:42:00",
+      "confidence": "very_high"
+    }
+  }
+}
