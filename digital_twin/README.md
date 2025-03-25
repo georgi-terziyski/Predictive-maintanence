@@ -24,6 +24,10 @@ graph TD
 4. **Simulation Agent** - Performs what-if scenario modeling (port 5003)  
 5. **Analytics Agent** - Analyzes results and compares scenarios (port 5004)
 
+## Pre-requisites
+
+Python version 3.10
+
 ## Installation
 
 1. Clone the repository
