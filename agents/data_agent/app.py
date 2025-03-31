@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-import psycopg2
+#import psycopg2
 from dotenv import load_dotenv
 import os
 from datetime import datetime
@@ -9,34 +9,34 @@ load_dotenv()
 app = Flask(__name__)
 
 # Database configuration
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST'),
-    'database': os.getenv('DB_NAME'),
-    'user': os.getenv('DB_USER'),
-    'password': os.getenv('DB_PASSWORD')
-}
+# DB_CONFIG = {
+#    'host': os.getenv('DB_HOST'),
+#    'database': os.getenv('DB_NAME'),
+#    'user': os.getenv('DB_USER'),
+#    'password': os.getenv('DB_PASSWORD')
+#}
 
-def get_db_connection():
-    return psycopg2.connect(**DB_CONFIG)
+#def get_db_connection():
+#    return psycopg2.connect(**DB_CONFIG)
 
-def check_db_connection():
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('SELECT 1')
-        cur.close()
-        conn.close()
-        return True
-    except:
-        return False
+#def check_db_connection():
+#    try:
+#        conn = get_db_connection()
+#        cur = conn.cursor()
+#        cur.execute('SELECT 1')
+#        cur.close()
+#        conn.close()
+#        return True
+#    except:
+#        return False
 
 @app.route('/health')
 def health_check():
-    db_status = 'healthy' if check_db_connection() else 'unhealthy'
+#    db_status = 'healthy' if check_db_connection() else 'unhealthy'
     return jsonify({
         'status': 'running',
         'timestamp': datetime.now().isoformat(),
-        'database': db_status,
+#        'database': db_status,
         'version': '1.0'
     })
 
