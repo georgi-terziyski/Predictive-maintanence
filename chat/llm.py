@@ -1,15 +1,19 @@
 import os
+from dotenv import load_dotenv
 import json
 from flask import Flask, request, jsonify
 import ollama
+import requests
 from datetime import datetime
 from instructions import instructions
 
+load_dotenv()
+
 app = Flask(__name__)
 
-DATA_FOLDER = "data/"  # Folder where JSON files are stored
-# MODEL_NAME='llama3:8b'
-MODEL_NAME='llama3.2:3b'
+MODEL_NAME = os.getenv('MODEL_NAME')
+SUPERVISOR_API_URL = os.getenv('SUPERVISOR_API_URL')
+DATA_FOLDER = os.getenv('DATA_FOLDER')
 
 def get_latest_json(machine_id=None):
     """Finds the latest JSON file within the hardcoded test range. If commented out, defaults to the latest file."""
@@ -24,9 +28,8 @@ def get_latest_json(machine_id=None):
                 file_date = datetime.strptime(date_str, "%Y-%m-%d")
                 if m_id not in machine_files or file_date > machine_files[m_id][1]:
                     machine_files[m_id] = (file, file_date)
-
             except ValueError:
-                continue  # Skip invalid files
+                continue  # Skip invalid files  
 
     if machine_id:
         # Return latest JSON for the specific machine_id within the date range
@@ -47,7 +50,6 @@ def get_latest_json(machine_id=None):
 def chat_with_bot(user_input, machine_data):
     """Generates a response using the chatbot and machine data."""
     machine_context = json.dumps(machine_data, indent=2) if machine_data else "No machine data available."
-    
     response = ollama.chat(
         model=MODEL_NAME,
         messages=[
@@ -59,17 +61,44 @@ def chat_with_bot(user_input, machine_data):
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    user_message = request.json.get("message", "")
+    user_message = request.json.get("message", "").lower()
     machine_id = request.json.get("machine_id", "")
-
+    
     if not user_message:
         return jsonify({"error": "No message provided"}), 400
-
-    # Get JSON data using the hardcoded test range
+    
+    # Health check
+    if any(word in user_message for word in ["system health", "check health", "supervisor status", "check status", "is system running"]):
+        print('in health')
+        try:
+            response = requests.get(f"{SUPERVISOR_API_URL}/health")
+            return jsonify(response.json()), response.status_code
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    # Prediction request
+    if any(word in user_message for word in ["predict failure", "failure risk", "breakdown prediction", "estimate failure", "next failure", "time to failure"]):
+        print('in predict')
+        response = requests.post(
+            f"{SUPERVISOR_API_URL}/predict",
+            headers={"Content-Type": "application/json"},
+            json={}  # Sending an empty JSON payload
+            )
+        return jsonify(response.json()), response.status_code
+    
+    # Simulation request (with optional duration)
+    if any(word in user_message for word in ["simulate failure", "simulate conditions",
+        "test machine behavior", "run simulation","start simulation", "create synthetic conditions", 
+        "simulate scenarios", "run test conditions"]):
+        print('in simulation')
+        simulation_data = request.json.get("simulation data")
+        payload = {"duration": simulation_data} if simulation_data else {}
+        response = requests.post(f"{SUPERVISOR_API_URL}/simulate", json=payload)
+        return jsonify(response.json()), response.status_code
+    # Default chatbot response
     machine_data = get_latest_json(machine_id)
-
     bot_response = chat_with_bot(user_message, machine_data)
     return jsonify({"response": bot_response})
 
 if __name__ == "__main__":
-    app.run(port=5000, debug=True)
+    app.run(port=5005, debug=True)

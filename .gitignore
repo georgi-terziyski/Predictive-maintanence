@@ -1,2 +1,3 @@
 venv/
 .env
+chat/__pycache__/instructions.cpython-311.pyc
