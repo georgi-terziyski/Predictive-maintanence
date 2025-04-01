@@ -1,3 +1,8 @@
 venv/
+<<<<<<< HEAD
 M0*/
 .env
+=======
+.env
+chat/__pycache__/instructions.cpython-311.pyc
+>>>>>>> d470a29b69b23f8d84df6d0d6fd079a23b1ccf53
