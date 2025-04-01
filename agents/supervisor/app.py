@@ -90,33 +90,33 @@ def handle_simulation():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/analyze', methods=['POST'])
-def handle_analysis():
-    try:
-        # Forward request to analytics agent
-        analytics_agent = REGISTERED_AGENTS['analytics_agent']
-        response = requests.post(
-            f"{analytics_agent['base_url']}{analytics_agent['endpoints']['analyze']}",
-            json=request.json,
-            timeout=5
-        )
-        return jsonify(response.json()), response.status_code
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+#@app.route('/analyze', methods=['POST'])
+#def handle_analysis():
+#    try:
+#       # Forward request to analytics agent
+#        analytics_agent = REGISTERED_AGENTS['analytics_agent']
+#        response = requests.post(
+#            f"{analytics_agent['base_url']}{analytics_agent['endpoints']['analyze']}",
+#            json=request.json,
+#            timeout=5
+#        )
+#        return jsonify(response.json()), response.status_code
+#    except Exception as e:
+#        return jsonify({'error': str(e)}), 500
 
-@app.route('/compare', methods=['POST'])
-def handle_comparison():
-    try:
+#@app.route('/compare', methods=['POST'])
+#def handle_comparison():
+#    try:
         # Forward request to analytics agent
-        analytics_agent = REGISTERED_AGENTS['analytics_agent']
-        response = requests.post(
-            f"{analytics_agent['base_url']}{analytics_agent['endpoints']['compare']}",
-            json=request.json,
-            timeout=5
-        )
-        return jsonify(response.json()), response.status_code
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+#        analytics_agent = REGISTERED_AGENTS['analytics_agent']
+#        response = requests.post(
+#            f"{analytics_agent['base_url']}{analytics_agent['endpoints']['compare']}",
+#            json=request.json,
+#            timeout=5
+#        )
+#        return jsonify(response.json()), response.status_code
+#    except Exception as e:
+#        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(port=int(os.getenv('SUPERVISOR_PORT')))
