@@ -1,82 +1,409 @@
-from flask import Flask, jsonify
-#import psycopg2
+from flask import Flask, jsonify, request
+import psycopg2
+import psycopg2.extras  # For dictionary cursor
 from dotenv import load_dotenv
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 load_dotenv()
 
 app = Flask(__name__)
 
 # Database configuration
-# DB_CONFIG = {
-#    'host': os.getenv('DB_HOST'),
-#    'database': os.getenv('DB_NAME'),
-#    'user': os.getenv('DB_USER'),
-#    'password': os.getenv('DB_PASSWORD')
-#}
+DB_CONFIG = {
+    'host': os.getenv('DB_HOST'),
+    'database': os.getenv('DB_NAME'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD')
+}
 
-#def get_db_connection():
-#    return psycopg2.connect(**DB_CONFIG)
+def get_db_connection():
+    return psycopg2.connect(**DB_CONFIG)
 
-#def check_db_connection():
-#    try:
-#        conn = get_db_connection()
-#        cur = conn.cursor()
-#        cur.execute('SELECT 1')
-#        cur.close()
-#        conn.close()
-#        return True
-#    except:
-#        return False
-
-@app.route('/health')
-def health_check():
-#    db_status = 'healthy' if check_db_connection() else 'unhealthy'
-    return jsonify({
-        'status': 'running',
-        'timestamp': datetime.now().isoformat(),
-#        'database': db_status,
-        'version': '1.0'
-    })
-
-@app.route('/live_data', methods=['GET'])
-def get_live_data():
+def check_db_connection():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('SELECT * FROM machine_data ORDER BY timestamp DESC LIMIT 1;')
-        data = cur.fetchone()
+        cur.execute('SELECT 1')
         cur.close()
         conn.close()
-        return jsonify({
-            'machine_id': data[0],
-            'timestamp': data[1],
-            'temperature': data[2],
-            'vibration': data[3],
-            'load': data[4]
-        })
+        return True
+    except Exception as e:
+        print(f"Database connection error: {str(e)}")
+        return False
+
+@app.route('/health')
+def health_check():
+    db_status = 'healthy' if check_db_connection() else 'unhealthy'
+    return jsonify({
+        'status': 'running',
+        'timestamp': datetime.now().isoformat(),
+        'database': db_status,
+        'version': '1.0'
+    })
+
+@app.route('/machines', methods=['GET'])
+def get_machines():
+    """Get all machines and their status"""
+    try:
+        conn = get_db_connection()
+        # Use DictCursor to get column names in results
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute('SELECT * FROM machines ORDER BY machine_id;')
+        machines = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Convert to list of dictionaries
+        result = [dict(row) for row in machines]
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/predict', methods=['GET'])
+def get_predict_data():
+    """
+    Get sensor data for the last 4 days for a specific machine.
+    This endpoint is used by the prediction agent to fetch data for making predictions.
+    """
+    try:
+        # Get machine_id from query parameters (required)
+        machine_id = request.args.get('machine_id')
+        if not machine_id:
+            return jsonify({'error': 'machine_id parameter is required'}), 400
+            
+        # Calculate date 4 days ago from now
+        four_days_ago = datetime.now() - timedelta(days=4)
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Query sensor data for the specified machine from the last 4 days
+        query = '''
+            SELECT * FROM sensor_data
+            WHERE machine_id = %s AND timestamp >= %s
+            ORDER BY timestamp ASC
+        '''
+        
+        cur.execute(query, (machine_id, four_days_ago))
+        sensor_data = cur.fetchall()
+        
+        # Also get machine information
+        cur.execute('SELECT * FROM machines WHERE machine_id = %s', (machine_id,))
+        machine_info = cur.fetchone()
+        
+        cur.close()
+        conn.close()
+        
+        if not machine_info:
+            return jsonify({'error': f'No machine found with ID: {machine_id}'}), 404
+            
+        # Build the response with machine info and sensor readings
+        result = {
+            'machine': dict(machine_info),
+            'time_period': f'Last 4 days ({four_days_ago.isoformat()} to {datetime.now().isoformat()})',
+            'sensor_count': len(sensor_data),
+            'sensor_data': [dict(row) for row in sensor_data]
+        }
+        
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/live_data', methods=['GET'])
+def get_live_data():
+    """Get latest sensor data for all machines or a specific machine"""
+    try:
+        machine_id = request.args.get('machine_id')
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        if machine_id:
+            query = '''
+                SELECT s.* FROM sensor_data s
+                INNER JOIN (
+                    SELECT machine_id, MAX(timestamp) as max_time 
+                    FROM sensor_data 
+                    WHERE machine_id = %s
+                    GROUP BY machine_id
+                ) latest
+                ON s.machine_id = latest.machine_id AND s.timestamp = latest.max_time;
+            '''
+            cur.execute(query, (machine_id,))
+        else:
+            # Get latest reading for each machine
+            query = '''
+                SELECT s.* FROM sensor_data s
+                INNER JOIN (
+                    SELECT machine_id, MAX(timestamp) as max_time 
+                    FROM sensor_data 
+                    GROUP BY machine_id
+                ) latest
+                ON s.machine_id = latest.machine_id AND s.timestamp = latest.max_time;
+            '''
+            cur.execute(query)
+            
+        data = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Convert to list of dictionaries
+        result = [dict(row) for row in data]
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/historical_data', methods=['GET'])
 def get_historical_data():
+    """Get historical sensor data with optional filtering"""
     try:
+        # Parse query parameters
+        machine_id = request.args.get('machine_id')
+        limit = request.args.get('limit', 100, type=int)
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        query_params = []
+        conditions = []
+        
+        # Build query based on parameters
+        base_query = 'SELECT * FROM sensor_data'
+        
+        if machine_id:
+            conditions.append('machine_id = %s')
+            query_params.append(machine_id)
+            
+        if start_date:
+            conditions.append('timestamp >= %s')
+            query_params.append(start_date)
+            
+        if end_date:
+            conditions.append('timestamp <= %s')
+            query_params.append(end_date)
+        
+        # Add WHERE clause if conditions exist
+        if conditions:
+            base_query += ' WHERE ' + ' AND '.join(conditions)
+            
+        # Add order and limit
+        base_query += ' ORDER BY timestamp DESC LIMIT %s'
+        query_params.append(limit)
+        
         conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute('SELECT * FROM machine_data ORDER BY timestamp DESC LIMIT 100;')
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute(base_query, query_params)
         data = cur.fetchall()
         cur.close()
         conn.close()
-        return jsonify([{
-            'machine_id': row[0],
-            'timestamp': row[1],
-            'temperature': row[2],
-            'vibration': row[3],
-            'load': row[4]
-        } for row in data])
+        
+        # Convert to list of dictionaries
+        result = [dict(row) for row in data]
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/predictions', methods=['GET'])
+def get_predictions():
+    """Get prediction records with optional filtering"""
+    try:
+        machine_id = request.args.get('machine_id')
+        limit = request.args.get('limit', 100, type=int)
+        
+        query_params = []
+        conditions = []
+        
+        # Build query based on parameters
+        base_query = 'SELECT * FROM predictions'
+        
+        if machine_id:
+            conditions.append('machine_id = %s')
+            query_params.append(machine_id)
+        
+        # Add WHERE clause if conditions exist
+        if conditions:
+            base_query += ' WHERE ' + ' AND '.join(conditions)
+            
+        # Add order and limit
+        base_query += ' ORDER BY created_at DESC LIMIT %s'
+        query_params.append(limit)
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute(base_query, query_params)
+        data = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Convert to list of dictionaries
+        result = [dict(row) for row in data]
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/predictions', methods=['POST'])
+def add_prediction():
+    """Store a new prediction from the prediction agent"""
+    try:
+        data = request.get_json()
+        required_fields = ['machine_id', 'predicted_failure_date', 'confidence', 'model_version']
+        
+        # Validate required fields
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Prepare SQL statement with only provided fields
+        fields = []
+        placeholders = []
+        values = []
+        
+        for key, value in data.items():
+            fields.append(key)
+            placeholders.append('%s')
+            values.append(value)
+        
+        # Create the INSERT statement
+        sql = f'''
+            INSERT INTO predictions ({', '.join(fields)})
+            VALUES ({', '.join(placeholders)})
+            RETURNING id
+        '''
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(sql, values)
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'id': new_id, 'status': 'created'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/maintenance', methods=['GET'])
+def get_maintenance():
+    """Get maintenance records with optional filtering"""
+    try:
+        # Parse query parameters
+        machine_id = request.args.get('machine_id')
+        limit = request.args.get('limit', 100, type=int)
+        maintenance_type = request.args.get('type')
+        status = request.args.get('status')
+        
+        query_params = []
+        conditions = []
+        
+        # Build query based on parameters
+        base_query = 'SELECT * FROM maintenance'
+        
+        if machine_id:
+            conditions.append('machine_id = %s')
+            query_params.append(machine_id)
+            
+        if maintenance_type:
+            conditions.append('maintenance_type = %s')
+            query_params.append(maintenance_type)
+            
+        if status:
+            conditions.append('status = %s')
+            query_params.append(status)
+        
+        # Add WHERE clause if conditions exist
+        if conditions:
+            base_query += ' WHERE ' + ' AND '.join(conditions)
+            
+        # Add order and limit
+        base_query += ' ORDER BY maintenance_date DESC LIMIT %s'
+        query_params.append(limit)
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute(base_query, query_params)
+        data = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Convert to list of dictionaries
+        result = [dict(row) for row in data]
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/maintenance', methods=['POST'])
+def add_maintenance():
+    """Add a new maintenance record"""
+    try:
+        data = request.get_json()
+        required_fields = ['machine_id', 'maintenance_date', 'maintenance_type', 'reason']
+        
+        # Validate required fields
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Prepare SQL statement with only provided fields
+        fields = []
+        placeholders = []
+        values = []
+        
+        for key, value in data.items():
+            fields.append(key)
+            placeholders.append('%s')
+            values.append(value)
+        
+        # Create the INSERT statement
+        sql = f'''
+            INSERT INTO maintenance ({', '.join(fields)})
+            VALUES ({', '.join(placeholders)})
+            RETURNING id
+        '''
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(sql, values)
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'id': new_id, 'status': 'created'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/defaults', methods=['GET'])
+def get_defaults():
+    """Get system defaults with optional category filtering"""
+    try:
+        category = request.args.get('category')
+        
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        if category:
+            cur.execute('SELECT * FROM defaults WHERE category = %s', (category,))
+        else:
+            cur.execute('SELECT * FROM defaults')
+            
+        data = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Group by category
+        result = {}
+        for row in data:
+            row_dict = dict(row)
+            category = row_dict['category']
+            
+            if category not in result:
+                result[category] = []
+                
+            result[category].append(row_dict)
+            
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=int(os.getenv('DATA_AGENT_PORT')))
+    app.run(port=int(os.getenv('DATA_AGENT_PORT', 5001)))
