@@ -11,7 +11,9 @@ The database consists of the following tables:
 3. **predictions** - Machine learning predictions for potential failures
 4. **simulations** - Data about simulation scenarios run on machines
 5. **maintenance** - Records of maintenance activities
-6. **defaults** - System-wide default values and configuration
+6. **defaults** - System-wide and machine-specific threshold values and configuration
+   - Now supports machine-specific thresholds for each machine (M001-M010)
+   - Contains sensor thresholds like AFR, RPM, current, pressure, temperature, and vibration
 
 ## Setup Instructions
 
@@ -61,11 +63,14 @@ sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE predictive_maintenanc
 ### 4. Initialize the Database Schema
 
 ```bash
-# Run the schema creation script
+# Run the schema creation script (creates tables and global defaults)
 psql -U your_username -d predictive_maintenance -f schema.sql
 
 # Add the maintenance table
 psql -U your_username -d predictive_maintenance -f maintenance_table.sql
+
+# Add machine-specific defaults for all machines (M001-M010)
+psql -U your_username -d predictive_maintenance -f defaults.sql
 ```
 
 ### 5. Configure Environment Variables
@@ -109,6 +114,7 @@ The Data Agent provides the following API endpoints:
 
 ### Machines
 - **GET /machines** - Get information about all machines
+- **GET /machine_list** - Get a simplified list of machine IDs and names only
 
 ### Sensor Data
 - **GET /predict?machine_id=M001** - Get sensor data for the last 4 days for a specific machine
@@ -128,15 +134,31 @@ The Data Agent provides the following API endpoints:
 - **POST /maintenance** - Create a new maintenance record
 
 ### System Defaults
-- **GET /defaults** - Get all system default values
+- **GET /defaults** - Get all system and machine-specific default values
 - **GET /defaults?category=sensor_thresholds** - Get defaults for a specific category
+- **GET /defaults?machine_id=M001** - Get machine-specific defaults with averaged min/max values
+- **GET /machine_defaults?machine_id=M001** - Simplified endpoint for machine-specific thresholds (averaged)
 
 ## Example Usage
 
 ### Get Machine Information
 
 ```bash
+# Get full machine details
 curl http://localhost:5001/machines
+
+# Get simplified machine list (IDs and names only)
+curl http://localhost:5001/machine_list
+```
+
+### Get Default Thresholds
+
+```bash
+# Get all system and machine-specific defaults
+curl http://localhost:5001/defaults
+
+# Get all sensor thresholds
+curl http://localhost:5001/defaults?category=sensor_thresholds
 ```
 
 ### Get Prediction Data for a Machine

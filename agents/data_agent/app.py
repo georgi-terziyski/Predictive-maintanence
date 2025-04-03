@@ -374,33 +374,120 @@ def add_maintenance():
 
 @app.route('/defaults', methods=['GET'])
 def get_defaults():
-    """Get system defaults with optional category filtering"""
+    """Get system defaults with optional category/machine filtering"""
     try:
         category = request.args.get('category')
+        machine_id = request.args.get('machine_id')
         
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
+        query = 'SELECT * FROM defaults WHERE 1=1'
+        params = []
+        
         if category:
-            cur.execute('SELECT * FROM defaults WHERE category = %s', (category,))
-        else:
-            cur.execute('SELECT * FROM defaults')
+            query += ' AND category = %s'
+            params.append(category)
             
+        if machine_id:
+            query += ' AND machine_id = %s'
+            params.append(machine_id)
+        
+        cur.execute(query, params)
         data = cur.fetchall()
         cur.close()
         conn.close()
         
-        # Group by category
-        result = {}
-        for row in data:
-            row_dict = dict(row)
-            category = row_dict['category']
+        if machine_id:
+            # For machine-specific defaults, return a simplified format with averages
+            result = {}
             
-            if category not in result:
-                result[category] = []
+            # Collect min/max values for averaging
+            min_max_values = {}
+            
+            for row in data:
+                row_dict = dict(row)
+                key = row_dict['key']
+                value = row_dict['value']
                 
-            result[category].append(row_dict)
+                # If it's a min/max key, store for later averaging
+                if key.endswith('_min') or key.endswith('_max'):
+                    base_name = key[:-4]  # Remove _min or _max
+                    
+                    # Skip vibration, it stays as max only
+                    if base_name == 'vibration':
+                        if key == 'vibration_max':
+                            result[key] = value
+                        continue
+                    
+                    if base_name not in min_max_values:
+                        min_max_values[base_name] = {}
+                    
+                    min_max_values[base_name][key[-3:]] = float(value)
+                else:
+                    # Non min/max keys go directly into result
+                    result[key] = value
             
+            # Calculate averages
+            for base_name, values in min_max_values.items():
+                if 'min' in values and 'max' in values:
+                    avg = (values['min'] + values['max']) / 2
+                    result[f"{base_name}"] = str(round(avg, 2))
+            
+            # Include machine info
+            machine_info = get_machine_info(machine_id)
+            if machine_info:
+                result['machine_id'] = machine_id
+                result['machine_name'] = machine_info.get('name', '')
+                result['machine_type'] = machine_info.get('type', '')
+            
+            return jsonify(result)
+        else:
+            # Group by category for general queries (backward compatibility)
+            result = {}
+            for row in data:
+                row_dict = dict(row)
+                category = row_dict['category']
+                
+                if category not in result:
+                    result[category] = []
+                    
+                result[category].append(row_dict)
+                
+            return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Helper function to get machine info
+def get_machine_info(machine_id):
+    """Get basic information about a specific machine"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute('SELECT * FROM machines WHERE machine_id = %s', (machine_id,))
+        machine = cur.fetchone()
+        cur.close()
+        conn.close()
+        
+        if machine:
+            return dict(machine)
+        return None
+    except:
+        return None
+
+@app.route('/machine_list', methods=['GET'])
+def get_machine_list():
+    """Get a simplified list of machine IDs and names only"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute('SELECT machine_id, name FROM machines ORDER BY machine_id;')
+        machines = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Convert to list of dictionaries
+        result = [dict(row) for row in machines]
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500

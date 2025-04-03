@@ -14,7 +14,9 @@ REGISTERED_AGENTS = {
         'base_url': os.getenv('DATA_AGENT_URL'),
         'endpoints': {
             'health': '/health',
-            'fetch_data': '/fetch'
+            'fetch_data': '/fetch',
+            'machine_list': '/machine_list',
+            'defaults': '/defaults'
         }
     },
     'prediction_agent': {
@@ -90,33 +92,37 @@ def handle_simulation():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-#@app.route('/analyze', methods=['POST'])
-#def handle_analysis():
-#    try:
-#       # Forward request to analytics agent
-#        analytics_agent = REGISTERED_AGENTS['analytics_agent']
-#        response = requests.post(
-#            f"{analytics_agent['base_url']}{analytics_agent['endpoints']['analyze']}",
-#            json=request.json,
-#            timeout=5
-#        )
-#        return jsonify(response.json()), response.status_code
-#    except Exception as e:
-#        return jsonify({'error': str(e)}), 500
+@app.route('/machine_list', methods=['GET'])
+def handle_machine_list():
+    try:
+        # Forward request to data agent
+        data_agent = REGISTERED_AGENTS['data_agent']
+        response = requests.get(
+            f"{data_agent['base_url']}{data_agent['endpoints']['machine_list']}",
+            timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
-#@app.route('/compare', methods=['POST'])
-#def handle_comparison():
-#    try:
-        # Forward request to analytics agent
-#        analytics_agent = REGISTERED_AGENTS['analytics_agent']
-#        response = requests.post(
-#            f"{analytics_agent['base_url']}{analytics_agent['endpoints']['compare']}",
-#            json=request.json,
-#            timeout=5
-#        )
-#        return jsonify(response.json()), response.status_code
-#    except Exception as e:
-#        return jsonify({'error': str(e)}), 500
+@app.route('/machine_defaults', methods=['GET'])
+def handle_machine_defaults():
+    try:
+        # Get machine_id from request
+        machine_id = request.args.get('machine_id')
+        if not machine_id:
+            return jsonify({'error': 'machine_id parameter is required'}), 400
+            
+        # Forward request to data agent
+        data_agent = REGISTERED_AGENTS['data_agent']
+        response = requests.get(
+            f"{data_agent['base_url']}{data_agent['endpoints']['defaults']}",
+            params={'machine_id': machine_id},
+            timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(port=int(os.getenv('SUPERVISOR_PORT')))

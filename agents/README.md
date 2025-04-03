@@ -77,10 +77,23 @@ python digital_twin/analytics_agent/app.py
 ### Supervisor Endpoints
 
 - `GET /health` - System health check
+- `GET /machine_list` - Get simplified list of machine IDs and names
+- `GET /machine_defaults` - Get machine-specific threshold values (averaged min/max)
 - `POST /predict` - Get machine predictions
 - `POST /simulate` - Run scenario simulation
 - `POST /analyze` - Analyze results
 - `POST /compare` - Compare scenarios
+
+### Data Agent Endpoints
+
+- `GET /health` - Agent health check
+- `GET /machines` - Get all machine details
+- `GET /machine_list` - Get simplified list of machine IDs and names
+- `GET /live_data` - Get latest sensor readings
+- `GET /historical_data` - Get historical sensor data
+- `GET /defaults` - Get system and machine-specific thresholds
+  - Now supports `machine_id` parameter to return machine-specific values
+  - Returns averaged values for min/max pairs (except vibration)
 
 ## Example Usage
 
@@ -91,9 +104,33 @@ import requests
 response = requests.get("http://localhost:5000/health")
 print(response.json())
 
+# Get machine list
+machines = requests.get("http://localhost:5000/machine_list")
+print(machines.json())
+
+# Get machine-specific thresholds (full details via data agent)
+defaults = requests.get("http://localhost:5001/defaults?category=sensor_thresholds")
+print(defaults.json())
+
+# Get machine-specific thresholds with averaged values (via supervisor)
+machine_defaults = requests.get("http://localhost:5000/machine_defaults?machine_id=M001")
+print(machine_defaults.json())
+# Example output:
+# {
+#   "machine_id": "M001",
+#   "machine_name": "Precision milling machine", 
+#   "machine_type": "Milling",
+#   "afr": "12.5",
+#   "rpm": "3200", 
+#   "current": "30.0",
+#   "pressure": "5.0",
+#   "temperature": "72.5",
+#   "vibration_max": "5.0"
+# }
+
 # Get prediction
 prediction = requests.post("http://localhost:5000/predict", json={
-    "machine_id": "M123",
+    "machine_id": "M001",
     "sensor_readings": {...}
 })
 print(prediction.json())
