@@ -1,5 +1,5 @@
 #!/bin/bash
-# Setup and run script for the Predictive Maintenance System
+# Setup script for the Predictive Maintenance System
 
 # Colors for better readability
 GREEN='\033[0;32m'
@@ -8,7 +8,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${YELLOW}=====================================================${NC}"
-echo -e "${YELLOW}  Predictive Maintenance System - Setup and Run Tool  ${NC}"
+echo -e "${YELLOW}  Predictive Maintenance System - Setup Tool         ${NC}"
 echo -e "${YELLOW}=====================================================${NC}"
 echo
 
@@ -20,27 +20,27 @@ command -v psql >/dev/null 2>&1 || {
 
 # Ensure required Python packages are installed
 echo -e "${YELLOW}Checking and installing required Python packages...${NC}"
-pip install -r agents/requirements.txt
+pip install -r requirements.txt
 
 # Check if .env file exists, create if not
-if [ ! -f "agents/.env" ]; then
+if [ ! -f ".env" ]; then
     echo -e "${YELLOW}Creating .env file from .env.example...${NC}"
-    cp agents/.env.example agents/.env
-    echo -e "${GREEN}Created .env file. Please edit agents/.env to set your database credentials.${NC}"
+    cp .env.example .env
+    echo -e "${GREEN}Created .env file. Please edit .env to set your database credentials.${NC}"
     echo -e "${YELLOW}Press Enter to continue after editing the .env file, or Ctrl+C to cancel.${NC}"
     read
 fi
 
 # Source the environment variables
 echo -e "${YELLOW}Loading environment variables...${NC}"
-source agents/.env
+source .env
 
 # Check database connection
 echo -e "${YELLOW}Checking database connection...${NC}"
 if psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "SELECT 1" >/dev/null 2>&1; then
     echo -e "${GREEN}Database connection successful.${NC}"
 else
-    echo -e "${RED}Cannot connect to database. Please check your credentials in agents/.env${NC}"
+    echo -e "${RED}Cannot connect to database. Please check your credentials in .env${NC}"
     echo -e "${YELLOW}Do you want to create the database? (y/n)${NC}"
     read create_db
     if [ "$create_db" = "y" ]; then
@@ -49,7 +49,7 @@ else
         
         echo -e "${YELLOW}Initializing database schema...${NC}"
         psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f data/schema.sql
-        psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f data/maintenance_table.sql
+        psql -h $DB_HOST -U $DB_USER -d $DB_NAME -f data/defaults.sql
         
         echo -e "${GREEN}Database setup complete.${NC}"
     else
@@ -65,14 +65,18 @@ if [ ! -f "agents/models/failure_prediction_model.pkl" ]; then
     echo -e "${GREEN}Placeholder model created.${NC}"
 fi
 
-# Show menu of options
+# Create PIDs directory if it doesn't exist
+if [ ! -d "agents/pids" ]; then
+    echo -e "${YELLOW}Creating directory for PID files...${NC}"
+    mkdir -p agents/pids
+    echo -e "${GREEN}PID directory created.${NC}"
+fi
+
+# Show menu of additional setup options
 echo -e "${YELLOW}What would you like to do?${NC}"
 echo "1. Import sensor data from CSV"
-echo "2. Run all agents"
-echo "3. Run data agent only"
-echo "4. Run prediction agent only"
-echo "5. Exit"
-read -p "Enter your choice (1-5): " choice
+echo "2. Exit"
+read -p "Enter your choice (1-2): " choice
 
 case $choice in
     1)
@@ -80,32 +84,7 @@ case $choice in
         python data/import_data.py
         ;;
     2)
-        echo -e "${YELLOW}Starting all agents...${NC}"
-        echo -e "${GREEN}Starting data agent on port ${DATA_AGENT_PORT}...${NC}"
-        python agents/data_agent/app.py &
-        DATA_AGENT_PID=$!
-        
-        echo -e "${GREEN}Starting prediction agent on port ${PREDICTION_AGENT_PORT}...${NC}"
-        python agents/prediction_agent/app.py &
-        PREDICTION_AGENT_PID=$!
-        
-        echo -e "${GREEN}Starting supervisor on port ${SUPERVISOR_PORT}...${NC}"
-        python agents/supervisor/app.py &
-        SUPERVISOR_PID=$!
-        
-        echo -e "${GREEN}All agents started. Press Ctrl+C to stop.${NC}"
-        wait
-        ;;
-    3)
-        echo -e "${YELLOW}Starting data agent only...${NC}"
-        python agents/data_agent/app.py
-        ;;
-    4)
-        echo -e "${YELLOW}Starting prediction agent only...${NC}"
-        python agents/prediction_agent/app.py
-        ;;
-    5)
-        echo -e "${GREEN}Exiting.${NC}"
+        echo -e "${GREEN}Setup complete. Exiting.${NC}"
         exit 0
         ;;
     *)
@@ -114,4 +93,4 @@ case $choice in
         ;;
 esac
 
-echo -e "${GREEN}Done!${NC}"
+echo -e "${GREEN}Setup complete! You can now run the system using ./run.sh${NC}"
