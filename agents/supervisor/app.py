@@ -32,14 +32,6 @@ REGISTERED_AGENTS = {
             'health': '/health',
             'simulate': '/simulate'
         }
-    },
-    'analytics_agent': {
-        'base_url': os.getenv('ANALYTICS_AGENT_URL'),
-        'endpoints': {
-            'health': '/health',
-            'analyze': '/analyze',
-            'compare': '/compare'
-        }
     }
 }
 
