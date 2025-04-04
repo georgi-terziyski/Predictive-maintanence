@@ -106,44 +106,57 @@ display_status() {
     fi
 }
 
-# Show menu of options
-echo -e "${YELLOW}What would you like to do?${NC}"
-echo "1. Run all agents"
-echo "2. Run data agent only"
-echo "3. Run prediction agent only"
-echo "4. Run simulation agent only"
-echo "5. Run supervisor only"
-echo "6. Display agent status"
-echo "7. Exit"
-read -p "Enter your choice (1-7): " choice
+# Main menu loop - displays the menu repeatedly until user chooses to exit
+display_menu_and_handle_choice() {
+    while true; do
+        echo
+        echo -e "${YELLOW}What would you like to do?${NC}"
+        echo "1. Run all agents"
+        echo "2. Run data agent only"
+        echo "3. Run prediction agent only"
+        echo "4. Run simulation agent only"
+        echo "5. Run supervisor only"
+        echo "6. Display agent status"
+        echo "7. Exit to terminal"
+        read -p "Enter your choice (1-7): " choice
+        
+        case $choice in
+            1)
+                start_all_agents
+                display_status
+                ;;
+            2)
+                start_agent "data_agent" "agents/data_agent/app.py" $DATA_AGENT_PORT
+                display_status
+                ;;
+            3)
+                start_agent "prediction_agent" "agents/prediction_agent/app.py" $PREDICTION_AGENT_PORT
+                display_status
+                ;;
+            4)
+                start_agent "simulation_agent" "agents/simulation_agent/app.py" $SIMULATION_AGENT_PORT
+                display_status
+                ;;
+            5)
+                start_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
+                display_status
+                ;;
+            6)
+                display_status
+                ;;
+            7)
+                echo -e "${GREEN}Exiting. Agents will continue running in the background.${NC}"
+                echo -e "${YELLOW}You can use ./stop_reboot.sh to stop or reboot agents.${NC}"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Invalid choice. Please try again.${NC}"
+                ;;
+        esac
+        
+        echo -e "${YELLOW}You can use ./stop_reboot.sh to stop or reboot agents.${NC}"
+    done
+}
 
-case $choice in
-    1)
-        start_all_agents
-        ;;
-    2)
-        start_agent "data_agent" "agents/data_agent/app.py" $DATA_AGENT_PORT
-        ;;
-    3)
-        start_agent "prediction_agent" "agents/prediction_agent/app.py" $PREDICTION_AGENT_PORT
-        ;;
-    4)
-        start_agent "simulation_agent" "agents/simulation_agent/app.py" $SIMULATION_AGENT_PORT
-        ;;
-    5)
-        start_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
-        ;;
-    6)
-        display_status
-        ;;
-    7)
-        echo -e "${GREEN}Exiting.${NC}"
-        exit 0
-        ;;
-    *)
-        echo -e "${RED}Invalid choice. Exiting.${NC}"
-        exit 1
-        ;;
-esac
-
-echo -e "${YELLOW}You can use ./stop_reboot.sh to stop or reboot agents.${NC}"
+# Start the interactive menu
+display_menu_and_handle_choice

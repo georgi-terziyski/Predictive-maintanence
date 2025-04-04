@@ -26,9 +26,26 @@ pip install -r requirements.txt
 if [ ! -f ".env" ]; then
     echo -e "${YELLOW}Creating .env file from .env.example...${NC}"
     cp .env.example .env
-    echo -e "${GREEN}Created .env file. Please edit .env to set your database credentials.${NC}"
-    echo -e "${YELLOW}Press Enter to continue after editing the .env file, or Ctrl+C to cancel.${NC}"
-    read
+    
+    # Prompt for database credentials
+    echo -e "${YELLOW}Please enter your database credentials:${NC}"
+    read -p "Database Username: " db_user
+    read -sp "Database Password: " db_pass
+    echo
+    
+    # Update the .env file with the provided credentials
+    echo -e "${YELLOW}Updating .env file with provided credentials...${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS uses BSD sed which requires a different syntax
+        sed -i '' "s/DB_USER=your_username_here/DB_USER=$db_user/" .env
+        sed -i '' "s/DB_PASSWORD=your_password_here/DB_PASSWORD=$db_pass/" .env
+    else
+        # Linux and other systems use GNU sed
+        sed -i "s/DB_USER=your_username_here/DB_USER=$db_user/" .env
+        sed -i "s/DB_PASSWORD=your_password_here/DB_PASSWORD=$db_pass/" .env
+    fi
+    
+    echo -e "${GREEN}Credentials saved to .env file.${NC}"
 fi
 
 # Source the environment variables
