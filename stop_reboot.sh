@@ -158,6 +158,64 @@ display_status() {
     fi
 }
 
+# Function to process a menu choice
+process_choice() {
+    local choice=$1
+    
+    case $choice in
+        1)
+            stop_all_agents
+            ;;
+        2)
+            reboot_all_agents
+            ;;
+        3)
+            stop_agent "data_agent"
+            ;;
+        4)
+            reboot_agent "data_agent" "agents/data_agent/app.py" $DATA_AGENT_PORT
+            ;;
+        5)
+            stop_agent "prediction_agent"
+            ;;
+        6)
+            reboot_agent "prediction_agent" "agents/prediction_agent/app.py" $PREDICTION_AGENT_PORT
+            ;;
+        7)
+            stop_agent "simulation_agent"
+            ;;
+        8)
+            reboot_agent "simulation_agent" "agents/simulation_agent/app.py" $SIMULATION_AGENT_PORT
+            ;;
+        9)
+            stop_agent "supervisor"
+            ;;
+        10)
+            reboot_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
+            ;;
+        11)
+            display_status
+            ;;
+        12)
+            echo -e "${GREEN}Exiting.${NC}"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Invalid choice. Please try again.${NC}"
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+# Check if script was called with an argument
+if [ $# -eq 1 ]; then
+    # Process the command-line argument
+    choice=$1
+    process_choice $choice
+    exit $?
+fi
+
 # Main Menu
 while true; do
     clear

@@ -52,11 +52,8 @@ cd predictive-maintenance
 ### 2. Run Setup Script
 
 ```bash
-# Make scripts executable
-chmod +x setup.sh run.sh stop_reboot.sh
-
-# Run setup
-./setup.sh
+# Run setup using the Makefile
+make setup
 ```
 
 This will:
@@ -69,7 +66,7 @@ This will:
 ### 3. Start the System
 
 ```bash
-./run.sh
+make run
 ```
 
 Select option 1 to start all agents or select specific agents to run.
@@ -79,7 +76,13 @@ Select option 1 to start all agents or select specific agents to run.
 To stop or reboot agents:
 
 ```bash
-./stop_reboot.sh
+# Open the stop/reboot interface
+make stop-reboot
+
+# Or use direct commands:
+make stop      # Stop all agents
+make reboot    # Reboot all agents
+make status    # Show agent status
 ```
 
 This provides a menu-driven interface to:
@@ -87,6 +90,22 @@ This provides a menu-driven interface to:
 - Reboot all agents
 - Stop or reboot individual agents
 - View system status
+
+## Makefile Usage
+
+The project includes a Makefile that allows you to run the system scripts without requiring execute permissions:
+
+```bash
+make           # Display available commands
+make setup     # Set up the system
+make run       # Run the system
+make stop      # Stop all agents
+make reboot    # Reboot all agents
+make status    # Display agent status
+make stop-reboot # Open the stop/reboot interface
+```
+
+This is especially useful when pulling the code into a new environment where file permissions might not be preserved.
 
 ## Configuration
 

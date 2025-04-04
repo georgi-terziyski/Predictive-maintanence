@@ -64,16 +64,17 @@ start_agent() {
 start_all_agents() {
     # Start in the correct order: data_agent -> prediction_agent -> simulation_agent -> supervisor
     start_agent "data_agent" "agents/data_agent/app.py" $DATA_AGENT_PORT
-    sleep 2 # Give data agent time to start
+    sleep 5 # Give data agent time to start
     
     start_agent "prediction_agent" "agents/prediction_agent/app.py" $PREDICTION_AGENT_PORT
-    sleep 1
+    sleep 5
     
     start_agent "simulation_agent" "agents/simulation_agent/app.py" $SIMULATION_AGENT_PORT
-    sleep 1
+    sleep 5
     
     start_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
-    
+    sleep 5
+
     echo -e "${GREEN}All agents started. Use ./stop_reboot.sh to stop or reboot agents.${NC}"
 }
 
@@ -123,22 +124,27 @@ display_menu_and_handle_choice() {
         case $choice in
             1)
                 start_all_agents
+                sleep 5 # Give time for all agents to start
                 display_status
                 ;;
             2)
                 start_agent "data_agent" "agents/data_agent/app.py" $DATA_AGENT_PORT
+                sleep 5 # Give time for all agents to start
                 display_status
                 ;;
             3)
                 start_agent "prediction_agent" "agents/prediction_agent/app.py" $PREDICTION_AGENT_PORT
+                sleep 5 # Give time for all agents to start
                 display_status
                 ;;
             4)
                 start_agent "simulation_agent" "agents/simulation_agent/app.py" $SIMULATION_AGENT_PORT
+                sleep 5 # Give time for all agents to start
                 display_status
                 ;;
             5)
                 start_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
+                sleep 5 # Give time for all agents to start
                 display_status
                 ;;
             6)
