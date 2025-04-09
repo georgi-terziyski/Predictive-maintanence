@@ -117,4 +117,4 @@ def handle_machine_defaults():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=int(os.getenv('SUPERVISOR_PORT')))
+    app.run(host=os.getenv('FLASK_HOST'),port=int(os.getenv('SUPERVISOR_PORT')))

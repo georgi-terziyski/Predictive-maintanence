@@ -101,4 +101,4 @@ def chat():
     return jsonify({"response": bot_response})
 
 if __name__ == "__main__":
-    app.run(port=5005, debug=True)
+    app.run(host=os.getenv('FLASK_HOST'), port=5005, debug=True)
