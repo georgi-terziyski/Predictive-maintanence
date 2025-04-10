@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 import ollama
 import requests
 from datetime import datetime
-from chat.instructions import instructions
+from instructions import instructions
 
 load_dotenv()
 
