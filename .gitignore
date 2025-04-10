@@ -2,3 +2,4 @@ venv/
 .env
 M0*/
 chat/__pycache__/instructions.cpython-311.pyc
+chat/instructions_old.py

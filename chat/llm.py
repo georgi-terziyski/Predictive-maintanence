@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 import ollama
 import requests
 from datetime import datetime
-from instructions import instructions
+from chat.instructions_old import instructions
 
 load_dotenv()
 
@@ -15,37 +15,18 @@ MODEL_NAME = os.getenv('MODEL_NAME')
 SUPERVISOR_API_URL = os.getenv('SUPERVISOR_API_URL')
 DATA_FOLDER = os.getenv('DATA_FOLDER')
 
-def get_latest_json(machine_id=None):
-    """Finds the latest JSON file within the hardcoded test range. If commented out, defaults to the latest file."""
-    json_files = [f for f in os.listdir(DATA_FOLDER) if f.endswith(".json")]
-    machine_files = {}
+def get_live_data(machine_id):
+    """Fetches live data from the supervisor API for a specific machine_id."""
+    try:
+        response = requests.get(f"{SUPERVISOR_API_URL}/live-data/{machine_id}")
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return None
+    except Exception as e:
+        print(f"Error fetching live data: {e}")
+        return None
 
-    for file in json_files:
-        parts = file.replace(".json", "").split("_")  # Extract machine_id and date
-        if len(parts) == 2:
-            m_id, date_str = parts
-            try:
-                file_date = datetime.strptime(date_str, "%Y-%m-%d")
-                if m_id not in machine_files or file_date > machine_files[m_id][1]:
-                    machine_files[m_id] = (file, file_date)
-            except ValueError:
-                continue  # Skip invalid files  
-
-    if machine_id:
-        # Return latest JSON for the specific machine_id within the date range
-        if machine_id in machine_files:
-            file_path = os.path.join(DATA_FOLDER, machine_files[machine_id][0])
-            with open(file_path, "r") as f:
-                return json.load(f)
-    else:
-        # Return the latest JSON file overall within the date range
-        latest_file = max(machine_files.values(), key=lambda x: x[1], default=None)
-        if latest_file:
-            file_path = os.path.join(DATA_FOLDER, latest_file[0])
-            with open(file_path, "r") as f:
-                return json.load(f)
-
-    return None  # No valid JSON file found in the given date range
 
 def chat_with_bot(user_input, machine_data):
     """Generates a response using the chatbot and machine data."""
@@ -87,18 +68,24 @@ def chat():
         return jsonify(response.json()), response.status_code
     
     # Simulation request (with optional duration)
-    if any(word in user_message for word in ["simulate failure", "simulate conditions",
-        "test machine behavior", "run simulation","start simulation", "create synthetic conditions", 
-        "simulate scenarios", "run test conditions"]):
+    if any(word in user_message for word in ["__simulation_run"]):
         print('in simulation')
-        simulation_data = request.json.get("simulation data")
+        simulation_data = request.json.get("simulation_data")
         payload = {"duration": simulation_data} if simulation_data else {}
         response = requests.post(f"{SUPERVISOR_API_URL}/simulate", json=payload)
         return jsonify(response.json()), response.status_code
+    
     # Default chatbot response
-    machine_data = get_latest_json(machine_id)
+    if machine_id:
+        machine_data = get_live_data(machine_id)
+        if not machine_data:
+            return jsonify({"error": f"No live data available for machine ID: {machine_id}"}), 404
+    else:
+        machine_data = None
+
     bot_response = chat_with_bot(user_message, machine_data)
     return jsonify({"response": bot_response})
+
 
 if __name__ == "__main__":
     app.run(host=os.getenv('FLASK_HOST'), port=5005, debug=True)
