@@ -71,7 +71,7 @@ def chat():
     if any(word in user_message for word in ["__simulation_run"]):
         print('in simulation')
         simulation_data = request.json.get("simulation_data")
-        payload = {"duration": simulation_data} if simulation_data else {}
+        payload = {"simulation_data": simulation_data} if simulation_data else {}
         response = requests.post(f"{SUPERVISOR_API_URL}/simulate", json=payload)
         return jsonify(response.json()), response.status_code
     
