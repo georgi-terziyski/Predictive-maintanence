@@ -1,0 +1,75 @@
+Model artifacts will be saved:
+Model: projects/script_result/predictive_model_xgb_s1.joblib
+Features: projects/script_result/feature_columns_xgb_s1.joblib
+======================================================================
+Starting Run: W=24h, H=48h
+======================================================================
+--- Loading Data ---
+Loaded sensor: (174730, 8)
+Loaded failure: (177, 3)
+Loaded equipment: (10, 3)
+Loaded maintenance: (177, 3)
+Preparing data...
+WARNING: Duplicates after merge!
+--- Creating Features (W=24h, No FFT) ---
+Attempting manual frequency inference from median difference...
+Inferred frequency manually: <30 * Minutes>
+Using window periods: 48
+Calculating rolling features...
+Calculating features for: Temperature...
+Calculating features for: Vibration...
+Calculating features for: Pressure...
+Calculating features for: Current...
+Calculating features for: AFR...
+Calculating features for: RPM...
+Calculating derived features...
+Calculating correlation...
+Feature calculation complete. Time: 242.62s
+Handling NaNs...
+Adding static features...
+Using merge for static features due to index/column state...
+Static features added. Shape: (174730, 64)
+Feature creation complete.
+--- Creating Target Variable 'Failure_Within_H' (H=48h) ---
+Assigning target labels...
+Processed 100000/174730...
+Finished target loop. Time: 2.93s
+Set 7344 targets.
+Target created.
+Target proportion:
+Failure_Within_H
+0    0.579694
+1    0.420306
+Name: proportion, dtype: float64
+Shape before final dedupe: (174730, 65)
+Shape after final dedupe: (17473, 65)
+--- Training Model (XGBoost v1.x, Target: Failure_Within_H) ---
+Using 63 features.
+Train/Test sizes: 12231 / 5242
+Training XGBoost...
+Scale_pos_weight: 1.40
+Training complete. Time: 3.13s
+Best iteration: 65
+--- Evaluating Model ---
+Overall ROC AUC Score: 0.9742
+Overall PR AUC Score: 0.9707
+Model saved: projects/script_result/predictive_model_xgb_s1.joblib
+Features saved: projects/script_result/feature_columns_xgb_s1.joblib
+--- Detailed Threshold Analysis (Stage 1) ---
+Optimal Threshold (Max F1): 0.5950 -> F1=0.9464 (P=0.9225, R=0.9715)
+Applying Bayesian filter (Stage 1 Eval)...
+--- Applying Bayesian Filter (alpha=0.7, th=0.75, steps=2) ---
+Filter progress 0/5242...
+Filter done. Time: 0.39s
+Bayes Alarm dist:
+bayesian_alarm
+0    3243
+1    1999
+Name: count, dtype: int64
+Bayesian Metrics (S1): P=0.962, R=0.858, F1=0.907
+--- Saving Stage 1 Predictions to projects/script_result/stage1_predictions.csv ---
+S1 predictions saved.
+Attempting to write results to projects/script_result/stage1_grid_search_WH_results.csv...
+Results written successfully.
+--- Finished Run: W=24h, H=48h ---
+--- predictive_model.py Script Finished ---
