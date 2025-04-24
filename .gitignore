@@ -3,3 +3,4 @@ venv/
 M0*/
 chat/__pycache__/instructions.cpython-311.pyc
 chat/instructions_old.py
+__pycache__/predictive_model.cpython-311.pyc

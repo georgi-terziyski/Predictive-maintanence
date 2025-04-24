@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, Response
 import os
 import subprocess
 import glob
+import shutil
+
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'projects/uploads'
@@ -33,80 +35,134 @@ def upload_files():
         return jsonify({'error': 'No valid CSV files uploaded'}), 400
 
     return jsonify({'success': f'{len(saved_files)} CSV file(s) uploaded', 'files': saved_files}), 200
+
+
 @app.route('/run-script', methods=['POST'])
 def run_script():
     progress_file = 'projects/progress.txt'
-    
+
+    # Clear previous progress
     with open(progress_file, 'w') as f:
         f.truncate(0)
+
     if os.name == 'nt':
         python_exec = os.path.join('venv', 'Scripts', 'python.exe')
     else:
         python_exec = os.path.join('venv', 'bin', 'python')
 
-    process = subprocess.Popen(
-    [python_exec, 'predictive_model.py', '--save_model'],
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    text=True
-)
-
     output_lines = []
-    with open(progress_file, 'a') as progress:
-        for line in process.stdout:
-            cleaned = line.strip()
-            if cleaned:
-                progress.write(f"{cleaned}\n")
-                output_lines.append(cleaned)
 
-        for line in process.stderr:
-            cleaned = line.strip()
-            if cleaned:
-                progress.write(f"ERROR: {cleaned}\n")
-                output_lines.append(f"ERROR: {cleaned}")
+    def run_and_log(cmd):
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        with open(progress_file, 'a') as progress:
+            for line in process.stdout:
+                cleaned = line.strip()
+                if cleaned:
+                    progress.write(f"{cleaned}\n")
+                    progress.flush()
+                    output_lines.append(cleaned)
 
-    process.wait()
+            for line in process.stderr:
+                cleaned = line.strip()
+                if cleaned:
+                    progress.write(f"ERROR: {cleaned}\n")
+                    progress.flush()
+                    output_lines.append(f"ERROR: {cleaned}")
 
-    if process.returncode == 0:
-        cleanup_uploads()
-    
+        process.wait()
+        return process.returncode
+
+    # Run predictive_model.py
+    returncode1 = run_and_log([python_exec, '-u', 'predictive_model.py', '--save_model'])
+
+    if returncode1 == 0:
+        # Only run second stage if the first one succeeds
+        returncode2 = run_and_log([python_exec, '-u', 'stage2_classify_type.py'])
+        if returncode2 == 0:
+            cleanup_uploads()
+    else:
+        output_lines.append("Stage 1 failed. Skipping Stage 2.")
+
     last_line = output_lines[-1] if output_lines else "No output."
     return jsonify({'last_output': last_line}), 200
 
-
-progress_stages = {
-    "Loading Data": "--- Loading Data ---",
-    "Creating Features": "--- Creating Features",
-    "Creating Target": "--- Creating Target Variable",
-    "Training Model": "--- Training Model",
-    "Evaluating Model": "--- Evaluating Model ---",
-    "Applying Bayesian Filter": "--- Applying Bayesian Filter",
-    "Saving Predictions": "--- Saving Stage 1 Predictions",
-    "Run Complete": "--- predictive_model.py Script Finished ---"
-}
 
 @app.route('/progress', methods=['GET'])
 def get_progress():
     progress_file = 'projects/progress.txt'
 
-    if not os.path.exists(progress_file):
-        return jsonify({'error': 'Progress file not found'}), 404
+    CHECKPOINTS = [
+        ("Loading Data", 5),
+        ("Creating Features (W=24h", 15),
+        ("Training Model", 30),
+        ("Evaluating Model", 40),
+        ("predictive_model.py Script Finished", 50),
+        ("Running Stage 2", 55),
+        ("Creating Features (W=84h", 70),
+        ("Training Stage 2", 85),
+        ("Stage 2 Finished", 100),
+    ]
 
-    with open(progress_file, 'r') as f:
-        lines = f.readlines()
+    try:
+        with open(progress_file, 'r') as f:
+            lines = [line.strip() for line in f if line.strip()]
 
-    total_lines = len(lines)
-    progress_percent = (total_lines / 77) * 100  # 77 line in progress.txt
-    current_step = "Starting..."
+        current_step = "Starting..."
+        percent = 0
 
-    for step, marker in progress_stages.items():
-        if any(marker in line for line in lines):
-            current_step = step
+        for label, pct in reversed(CHECKPOINTS):
+            if any(label in line for line in lines):
+                current_step = label
+                percent = pct
+                break
+
+        return jsonify({
+            'step': current_step,
+            'progress': percent
+        }), 200
+
+    except FileNotFoundError:
+        return jsonify({'step': 'No progress yet.', 'progress': 0}), 200
+@app.route('/move_models', methods=['POST'])
+def move_models():
+    # Set destination folder (make sure it exists)
+    target_dir = 'projects/final_models'
+    os.makedirs(target_dir, exist_ok=True)
+
+    files_to_move = [
+        'projects/script_result/stage1/predictive_model_xgb_s1.joblib',
+        'projects/script_result/stage1/feature_columns_xgb_s1.joblib',
+        'projects/script_result/stage2/stage2_model_W84_H84_temp.joblib',
+        'projects/script_result/stage2/stage2_features_W84_H84_temp.joblib',
+        'projects/script_result/stage2/stage2_class_encoder.joblib'
+    ]
+
+    moved_files = []
+
+    for file_path in files_to_move:
+        if os.path.exists(file_path):
+            dest_path = os.path.join(target_dir, os.path.basename(file_path))
+            shutil.move(file_path, dest_path)
+            moved_files.append(os.path.basename(file_path))
+        else:
+            moved_files.append(f"{os.path.basename(file_path)} (not found)")
+            
+     # Clean up any leftover files in stage1 and stage2
+    for folder in ['projects/script_result/stage1', 'projects/script_result/stage2']:
+        for filename in os.listdir(folder):
+            file_path = os.path.join(folder, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
 
     return jsonify({
-        'progress': min(progress_percent, 100),
-        'status': current_step,
-        'lines_read': total_lines
+        'message': 'Files moved to archive.',
+        'files': moved_files
     }), 200
+
 if __name__ == '__main__':
     app.run(debug=True,port=5010, threaded=True)

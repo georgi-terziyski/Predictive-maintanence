@@ -1,14 +1,14 @@
 Model artifacts will be saved:
-Model: projects/script_result/predictive_model_xgb_s1.joblib
-Features: projects/script_result/feature_columns_xgb_s1.joblib
+Model: projects/script_result/stage1/predictive_model_xgb_s1.joblib
+Features: projects/script_result/stage1/feature_columns_xgb_s1.joblib
 ======================================================================
 Starting Run: W=24h, H=48h
 ======================================================================
 --- Loading Data ---
-Loaded sensor: (174730, 8)
-Loaded failure: (177, 3)
+Loaded sensor: (350410, 8)
+Loaded failure: (350, 3)
 Loaded equipment: (10, 3)
-Loaded maintenance: (177, 3)
+Loaded maintenance: (350, 3)
 Preparing data...
 WARNING: Duplicates after merge!
 --- Creating Features (W=24h, No FFT) ---
@@ -24,52 +24,152 @@ Calculating features for: AFR...
 Calculating features for: RPM...
 Calculating derived features...
 Calculating correlation...
-Feature calculation complete. Time: 242.62s
+Feature calculation complete. Time: 909.68s
 Handling NaNs...
 Adding static features...
 Using merge for static features due to index/column state...
-Static features added. Shape: (174730, 64)
+Static features added. Shape: (350410, 64)
 Feature creation complete.
 --- Creating Target Variable 'Failure_Within_H' (H=48h) ---
 Assigning target labels...
-Processed 100000/174730...
-Finished target loop. Time: 2.93s
-Set 7344 targets.
+Processed 100000/350410...
+Processed 200000/350410...
+Processed 300000/350410...
+Finished target loop. Time: 11.25s
+Set 14216 targets.
 Target created.
 Target proportion:
 Failure_Within_H
-0    0.579694
-1    0.420306
+0    0.594304
+1    0.405696
 Name: proportion, dtype: float64
-Shape before final dedupe: (174730, 65)
-Shape after final dedupe: (17473, 65)
+Shape before final dedupe: (350410, 65)
+Shape after final dedupe: (35041, 65)
 --- Training Model (XGBoost v1.x, Target: Failure_Within_H) ---
 Using 63 features.
-Train/Test sizes: 12231 / 5242
+Train/Test sizes: 24528 / 10513
 Training XGBoost...
-Scale_pos_weight: 1.40
-Training complete. Time: 3.13s
-Best iteration: 65
+Scale_pos_weight: 1.41
+Training complete. Time: 12.11s
+Best iteration: 96
 --- Evaluating Model ---
-Overall ROC AUC Score: 0.9742
-Overall PR AUC Score: 0.9707
-Model saved: projects/script_result/predictive_model_xgb_s1.joblib
-Features saved: projects/script_result/feature_columns_xgb_s1.joblib
+Overall ROC AUC Score: 0.9685
+Overall PR AUC Score: 0.9681
+Model saved: projects/script_result/stage1/predictive_model_xgb_s1.joblib
+Features saved: projects/script_result/stage1/feature_columns_xgb_s1.joblib
 --- Detailed Threshold Analysis (Stage 1) ---
-Optimal Threshold (Max F1): 0.5950 -> F1=0.9464 (P=0.9225, R=0.9715)
+Optimal Threshold (Max F1): 0.1988 -> F1=0.9405 (P=0.9441, R=0.9371)
 Applying Bayesian filter (Stage 1 Eval)...
 --- Applying Bayesian Filter (alpha=0.7, th=0.75, steps=2) ---
-Filter progress 0/5242...
-Filter done. Time: 0.39s
+Filter progress 0/10513...
+Filter done. Time: 0.98s
 Bayes Alarm dist:
 bayesian_alarm
-0    3243
-1    1999
+0    7300
+1    3213
 Name: count, dtype: int64
-Bayesian Metrics (S1): P=0.962, R=0.858, F1=0.907
---- Saving Stage 1 Predictions to projects/script_result/stage1_predictions.csv ---
+Bayesian Metrics (S1): P=0.971, R=0.770, F1=0.859
+--- Saving Stage 1 Predictions to projects/script_result/stage1/stage1_predictions.csv ---
 S1 predictions saved.
-Attempting to write results to projects/script_result/stage1_grid_search_WH_results.csv...
+Attempting to write results to projects/script_result/stage1/stage1_grid_search_WH_results.csv...
 Results written successfully.
 --- Finished Run: W=24h, H=48h ---
 --- predictive_model.py Script Finished ---
+Successfully imported functions from predictive_model.py
+--- Running Stage 2: Training Failure Type Classifier ---
+--- Using W2=84h, H2=84h ---
+Using Stage 1 predictions from: projects/script_result/stage1/stage1_predictions.csv
+*** FFT Calculation is SKIPPED ***
+Applying Bayesian filter...
+--- Applying Bayesian Filter (alpha=0.7, th=0.75, steps=2) ---
+Filter progress 0/10513...
+Filter done. Time: 1.37s
+Bayes Alarm dist:
+bayesian_alarm
+0    7300
+1    3213
+Name: count, dtype: int64
+Filtered 3213 instances via Bayes alarm.
+Reloading data & creating base/dynamic features (W=84h)...
+--- Loading Data ---
+Loaded sensor: (350410, 8)
+Loaded failure: (350, 3)
+Loaded equipment: (10, 3)
+Loaded maintenance: (350, 3)
+--- Creating Features (W=84h, No FFT) ---
+Attempting manual frequency inference from median difference...
+Inferred frequency manually: <30 * Minutes>
+Using window periods: 168
+Calculating rolling features...
+Calculating features for: Temperature...
+Calculating features for: Vibration...
+Calculating features for: Pressure...
+Calculating features for: Current...
+Calculating features for: AFR...
+Calculating features for: RPM...
+Calculating derived features...
+Calculating correlation...
+Feature calculation complete. Time: 660.28s
+Handling NaNs...
+Adding static features...
+Using merge for static features due to index/column state...
+Static features added. Shape: (350410, 64)
+Feature creation complete.
+Final features shape for S2 prep: (350410, 64)
+--- Preparing Data for Stage 2 Classifier ---
+--- Creating Stage 2 Target 'Actual_Failure_Type' (H2=84h) ---
+Processing 350410 instances for Stage 2 target.
+Mapping actual failure types (H2=84h)...
+Type distribution (H2=84h):
+Actual_Failure_Type
+Normal                     291620
+Carbon Buildup              11710
+Bearing Failure             11300
+Motor Burnout                9920
+Electrical Malfunction       9550
+Pressure System Failure      8560
+Overheating                  7750
+Name: count, dtype: int64
+Encoded classes:
+{'Bearing Failure': 0, 'Carbon Buildup': 1, 'Electrical Malfunction': 2, 'Motor Burnout': 3, 'Normal': 4, 'Overheating': 5, 'Pressure System Failure': 6}
+LE saved.
+Shape before dropping duplicates: (350410, 67)
+Shape after dropping duplicates: (35041, 67)
+Using 63 features for Stage 2.
+Stage 2 Feature shape: (35041, 63), Target shape: (35041,)
+Stage 2 Train/Test split: 24528 / 10513
+Number of classes: 7
+--- Training Stage 2: Multi-Class Failure Type Classifier ---
+Calculating sample weights...
+Sample weights calculated.
+Fitting Stage 2 model...
+Training complete. Time: 130.46s
+Best iteration: 249
+--- Evaluating Stage 2 Model ---
+Classification Report (Stage 2):
+precision    recall  f1-score   support
+Bearing Failure       0.24      0.38      0.29       339
+Carbon Buildup       0.23      0.46      0.30       351
+Electrical Malfunction       0.25      0.35      0.29       287
+Motor Burnout       0.18      0.31      0.23       298
+Normal       0.95      0.80      0.87      8749
+Overheating       0.18      0.38      0.24       232
+Pressure System Failure       0.20      0.36      0.25       257
+accuracy                           0.73     10513
+macro avg       0.32      0.43      0.35     10513
+weighted avg       0.83      0.73      0.77     10513
+Confusion Matrix (Stage 2):
+[[ 130   38    8   36   72   31   24]
+[  30  162   21   23   63   37   15]
+[  18   43  101   22   73   12   18]
+[  30   30   30   92   67   20   29]
+[ 302  396  221  296 6995  270  269]
+[  15   24    6   20   53   87   27]
+[  25   22   13   24   48   32   93]]
+Overall Stage 2 Accuracy: 72.86%
+S2 Model saved: projects/script_result/stage2/stage2_model_W84_H84_temp.joblib
+S2 Features saved: projects/script_result/stage2/stage2_features_W84_H84_temp.joblib
+S2 Label Encoder saved: projects/script_result/stage2/stage2_class_encoder.joblib
+Writing Stage 2 results to projects/script_result/stage2/stage2_grid_search_WH_results.csv...
+Results written successfully.
+--- Stage 2 Finished ---
