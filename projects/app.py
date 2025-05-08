@@ -3,7 +3,7 @@ import os
 import subprocess
 import glob
 import shutil
-
+from datetime import datetime
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'projects/uploads'
@@ -85,6 +85,7 @@ def run_script():
         returncode2 = run_and_log([python_exec, '-u', 'stage2_classify_type.py'])
         if returncode2 == 0:
             cleanup_uploads()
+            move_models()
     else:
         output_lines.append("Stage 1 failed. Skipping Stage 2.")
 
@@ -128,7 +129,9 @@ def get_progress():
 
     except FileNotFoundError:
         return jsonify({'step': 'No progress yet.', 'progress': 0}), 200
-@app.route('/move_models', methods=['POST'])
+    
+
+# @app.route('/move_models', methods=['POST'])
 def move_models():
     # Set destination folder (make sure it exists)
     target_dir = 'projects/final_models'
@@ -163,6 +166,50 @@ def move_models():
         'message': 'Files moved to archive.',
         'files': moved_files
     }), 200
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, 'Predictive-maintanence', 'projects', 'final_models')
+INFERENCE_DIR = os.path.join(PROJECT_ROOT, 'inference')
+HISTORY_DIR = os.path.join(INFERENCE_DIR, 'history')
+
+FILES_TO_PROCESS = ['feature_columns_xgb_s1.joblib', 'predictive_model_xgb_s1.joblib', 'stage2_class_encoder.joblib', 'stage2_features_W84_H84_temp.joblib', 'stage2_model_W84_H84_temp.joblib']
+
+@app.route('/deploy-model', methods=['POST'])
+def update_models():
+    try:
+        # Create timestamped folder under history
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        archive_dir = os.path.join(HISTORY_DIR, timestamp)
+        os.makedirs(archive_dir, exist_ok=True)
+
+        # Move old models to history
+        for filename in FILES_TO_PROCESS:
+            current_model_path = os.path.join(INFERENCE_DIR, filename)
+            archive_path = os.path.join(archive_dir, filename)
+
+            if os.path.exists(current_model_path):
+                shutil.move(current_model_path, archive_path)
+
+        # Copy new models from final_models to inference
+        for filename in FILES_TO_PROCESS:
+            new_model_path = os.path.join(FINAL_MODELS_DIR, filename)
+            target_path = os.path.join(INFERENCE_DIR, filename)
+
+            if os.path.exists(new_model_path):
+                shutil.copy(new_model_path, target_path)
+                os.remove(new_model_path)
+            else:
+                return jsonify({"error": f"New model not found: {new_model_path}"}), 404
+
+        return jsonify({
+            "message": "Models updated successfully",
+            "archived_to": archive_dir
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True,port=5010, threaded=True)
