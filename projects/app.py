@@ -99,12 +99,12 @@ def get_progress():
 
     CHECKPOINTS = [
         ("Loading Data", 5),
-        ("Creating Features (W=24h", 15),
+        ("Creating Features", 15),
         ("Training Model", 30),
         ("Evaluating Model", 40),
-        ("predictive_model.py Script Finished", 50),
+        ("Stage 1 Finished", 50),
         ("Running Stage 2", 55),
-        ("Creating Features (W=84h", 70),
+        ("Creating Features", 70),
         ("Training Stage 2", 85),
         ("Stage 2 Finished", 100),
     ]
