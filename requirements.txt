@@ -12,3 +12,6 @@ xgboost==1.7.6
 matplotlib==3.7.1
 scipy==1.10.1
 ollama
+chromadb
+sentence_transformers
+sentence_transformers
