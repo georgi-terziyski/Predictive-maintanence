@@ -14,4 +14,4 @@ scipy==1.10.1
 ollama
 chromadb
 sentence_transformers
-sentence_transformers
+PyMuPDF
