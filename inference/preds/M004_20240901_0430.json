@@ -1,0 +1,9 @@
+[
+  {
+    "timestamp": "2024-09-01 04:30:00",
+    "machineID": "M004",
+    "status": "ok",
+    "stage1_probability": 0.09600000083446503,
+    "failure_predictions": []
+  }
+]

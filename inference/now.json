@@ -1,0 +1,180 @@
+Loading artifacts...
+Loading data...
+Generating S1 features...
+
+--- Creating Features (W=24h, No FFT) ---
+Using window periods: 48
+Calculating rolling features...
+  Calculating features for: Temperature...
+  Calculating features for: Vibration...
+  Calculating features for: Pressure...
+  Calculating features for: Current...
+  Calculating features for: AFR...
+  Calculating features for: RPM...
+  Calculating derived features...
+  Calculating correlation...
+
+  Feature calculation complete. Time: 0.16s
+  Handling NaNs...
+  Adding static features...
+Static features added. Shape: (169, 64)
+Feature creation complete.
+Generating S2 features...
+
+--- Creating Features (W=84h, No FFT) ---
+Using window periods: 168
+Calculating rolling features...
+  Calculating features for: Temperature...
+  Calculating features for: Vibration...
+  Calculating features for: Pressure...
+  Calculating features for: Current...
+  Calculating features for: AFR...
+  Calculating features for: RPM...
+  Calculating derived features...
+  Calculating correlation...
+
+  Feature calculation complete. Time: 0.11s
+  Handling NaNs...
+  Adding static features...
+Static features added. Shape: (169, 64)
+Feature creation complete.
+
+--- Inference Results (JSON) ---
+[
+  {
+    "timestamp": "2024-10-01 04:30:00",
+    "machineID": "M004",
+    "status": "alert",
+    "stage1_probability": 0.9509000182151794,
+    "failure_predictions": [
+      {
+        "failure_type": "Bearing Failure",
+        "detection": {
+          "detected": false,
+          "probability": 0.0775,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": 0.063,
+          "confidence_change": 0.0145
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Carbon Buildup",
+        "detection": {
+          "detected": false,
+          "probability": 0.131,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": 0.1345,
+          "confidence_change": -0.0035
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Electrical Malfunction",
+        "detection": {
+          "detected": false,
+          "probability": 0.1336,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": 0.1622,
+          "confidence_change": -0.0286
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Motor Burnout",
+        "detection": {
+          "detected": true,
+          "probability": 0.3014,
+          "confidence": "medium"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": 0.295,
+          "confidence_change": 0.0064
+        },
+        "action_recommendation": {
+          "action": "monitor_closely",
+          "urgency": "medium",
+          "recommended_before": "2024-10-03 04:30:00"
+        }
+      },
+      {
+        "failure_type": "Normal",
+        "detection": {
+          "detected": true,
+          "probability": 0.3076,
+          "confidence": "medium"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": 0.2969,
+          "confidence_change": 0.0107
+        },
+        "action_recommendation": {
+          "action": "monitor_closely",
+          "urgency": "medium",
+          "recommended_before": "2024-10-03 04:30:00"
+        }
+      },
+      {
+        "failure_type": "Overheating",
+        "detection": {
+          "detected": false,
+          "probability": 0.0374,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": 0.0347,
+          "confidence_change": 0.0027
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Pressure System Failure",
+        "detection": {
+          "detected": false,
+          "probability": 0.0115,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": 0.0137,
+          "confidence_change": -0.0022
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      }
+    ]
+  }
+]
+
+--- Inference Script Finished ---

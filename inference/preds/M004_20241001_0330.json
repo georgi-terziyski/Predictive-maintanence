@@ -1,0 +1,136 @@
+[
+  {
+    "timestamp": "2024-10-01 03:30:00",
+    "machineID": "M004",
+    "status": "alert",
+    "stage1_probability": 0.9624000191688538,
+    "failure_predictions": [
+      {
+        "failure_type": "Bearing Failure",
+        "detection": {
+          "detected": false,
+          "probability": 0.062199998646974564,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": null,
+          "confidence_change": null
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Carbon Buildup",
+        "detection": {
+          "detected": false,
+          "probability": 0.13220000267028809,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": null,
+          "confidence_change": null
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Electrical Malfunction",
+        "detection": {
+          "detected": false,
+          "probability": 0.1665000021457672,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": null,
+          "confidence_change": null
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Motor Burnout",
+        "detection": {
+          "detected": true,
+          "probability": 0.24570000171661377,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": null,
+          "confidence_change": null
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Normal",
+        "detection": {
+          "detected": true,
+          "probability": 0.3450999855995178,
+          "confidence": "medium"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": null,
+          "confidence_change": null
+        },
+        "action_recommendation": {
+          "action": "monitor_closely",
+          "urgency": "medium",
+          "recommended_before": "2024-10-03 03:30:00"
+        }
+      },
+      {
+        "failure_type": "Overheating",
+        "detection": {
+          "detected": false,
+          "probability": 0.03310000151395798,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": null,
+          "confidence_change": null
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      },
+      {
+        "failure_type": "Pressure System Failure",
+        "detection": {
+          "detected": false,
+          "probability": 0.015200000256299973,
+          "confidence": "low"
+        },
+        "bayesian_update": {
+          "hours_to_failure": null,
+          "prior_prediction": null,
+          "confidence_change": null
+        },
+        "action_recommendation": {
+          "action": "monitor",
+          "urgency": "low",
+          "recommended_before": null
+        }
+      }
+    ]
+  }
+]

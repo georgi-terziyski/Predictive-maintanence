@@ -170,7 +170,7 @@ def move_models():
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, 'Predictive-maintanence', 'projects', 'final_models')
-INFERENCE_DIR = os.path.join(PROJECT_ROOT, 'inference')
+INFERENCE_DIR = os.path.join(PROJECT_ROOT, 'Predictive-maintanence', 'inference')
 HISTORY_DIR = os.path.join(INFERENCE_DIR, 'history')
 
 FILES_TO_PROCESS = ['feature_columns_xgb_s1.joblib', 'predictive_model_xgb_s1.joblib', 'stage2_class_encoder.joblib', 'stage2_features_W84_H84_temp.joblib', 'stage2_model_W84_H84_temp.joblib']
