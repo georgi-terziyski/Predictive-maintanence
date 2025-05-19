@@ -1,7 +1,20 @@
-venv/
+# Ignore Python cache files
+__pycache__/
+# Ignore environment files
+# You can uncomment the following lines if you want to ignore specific environment files
 .env
-M0*/
-chat/__pycache__/instructions.cpython-311.pyc
-chat/instructions_old.py
-__pycache__/predictive_model.cpython-311.pyc
+# Ignore IDE-specific files
+.idea/
 .vscode/
+# Ignore log files
+logs/
+*.log
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+# Ignore Python bytecode files
+*.pyc
+# Ignore virtual environment directories
+venv/
+chat/instructions_old/
+#ignore pid files
+*.pid
