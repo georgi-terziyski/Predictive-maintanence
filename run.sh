@@ -81,7 +81,7 @@ start_all_agents() {
     start_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
     sleep 2
     
-    start_agent "livedata" "livedata/live_flask.py" $LIVEDATA_PORT
+    start_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
     sleep 2
 
     echo -e "${GREEN}All agents started. Use ./stop_reboot.sh to stop or reboot agents.${NC}"
@@ -115,10 +115,10 @@ display_status() {
         echo -e "${RED}Supervisor: Not running${NC}"
     fi
     
-    if is_agent_running "livedata"; then
-        echo -e "${GREEN}LiveData Generator: Running (PID: $(cat agents/pids/livedata.pid), Port: $LIVEDATA_PORT)${NC}"
+    if is_agent_running "synthetic_data"; then
+        echo -e "${GREEN}Synthetic Data Generator: Running (PID: $(cat agents/pids/synthetic_data.pid), Port: $LIVEDATA_PORT)${NC}"
     else
-        echo -e "${RED}LiveData Generator: Not running${NC}"
+        echo -e "${RED}Synthetic Data Generator: Not running${NC}"
     fi
 }
 
@@ -132,7 +132,7 @@ display_menu_and_handle_choice() {
         echo "3. Run prediction agent only"
         echo "4. Run simulation agent only"
         echo "5. Run supervisor only"
-        echo "6. Run livedata generator only"
+        echo "6. Run synthetic data generator only"
         echo "7. Display agent status"
         echo "8. Exit to terminal"
         read -p "Enter your choice (1-8): " choice
@@ -164,7 +164,7 @@ display_menu_and_handle_choice() {
                 display_status
                 ;;
             6)
-                start_agent "livedata" "livedata/live_flask.py" $LIVEDATA_PORT
+                start_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
                 sleep 2 # Give time for the agent to start
                 display_status
                 ;;

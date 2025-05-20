@@ -9,7 +9,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Available agents
-AGENTS=("data_agent" "prediction_agent" "simulation_agent" "supervisor" "livedata")
+AGENTS=("data_agent" "prediction_agent" "simulation_agent" "supervisor" "synthetic_data")
 
 # Function to show usage
 show_usage() {

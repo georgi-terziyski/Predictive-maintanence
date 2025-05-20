@@ -7,7 +7,6 @@ __pycache__/
 .idea/
 .vscode/
 # Ignore log files
-logs/
 *.log
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
@@ -18,3 +17,7 @@ venv/
 chat/instructions_old/
 #ignore pid files
 *.pid
+#ignore backup files
+data/backup/*.csv
+#ignore prediction files
+inference/preds/

@@ -39,7 +39,7 @@ def health_check():
     })
 
 def fetch_machine_data(machine_id):
-    """Fetch sensor data for the specified machine from the data agent"""
+    """Fetch prediction data for the specified machine from the data agent"""
     try:
         response = requests.get(
             f"{DATA_AGENT_URL}/predict?machine_id={machine_id}",
@@ -54,10 +54,10 @@ def fetch_machine_data(machine_id):
     except Exception as e:
         return None, f"Error fetching data from data agent: {str(e)}"
 
-def convert_to_inference_format(sensor_data, machine_id):
-    """Convert API sensor data to format expected by inference.py"""
-    # Create a DataFrame from the sensor readings
-    df = pd.DataFrame(sensor_data)
+def convert_to_inference_format(prediction_data, machine_id):
+    """Convert API prediction data to format expected by inference.py"""
+    # Create a DataFrame from the prediction readings
+    df = pd.DataFrame(prediction_data)
     
     # Ensure column names match what inference.py expects
     df.rename(columns={
@@ -83,16 +83,17 @@ def convert_to_inference_format(sensor_data, machine_id):
 def store_prediction(machine_id, result):
     """Store prediction results back to the database via data agent"""
     try:
-        # Extract relevant information from the inference result
+        # Extract relevant information from the inference result as per DB schema requirements
+        # Send the result object directly as prediction_details - data_agent will handle JSON conversion
         prediction_data = {
             'machine_id': machine_id,
             'status': result['status'],
             'failure_probability': result['stage1_probability'],
-            'predicted_failure_types': [p['failure_type'] for p in result['failure_predictions']] if result['failure_predictions'] else [],
-            'confidence': result['failure_predictions'][0]['detection']['confidence'] if result['failure_predictions'] else 'none',
             'prediction_timestamp': result['timestamp'],
-            'prediction_details': json.dumps(result)
+            'prediction_details': result  # Send the entire result object, not as a string
         }
+        
+        print(f"Storing prediction for machine {machine_id} with status {result['status']}")
         
         # Send to data agent
         response = requests.post(
@@ -125,14 +126,14 @@ def predict():
         if error:
             return jsonify({'error': error}), 500
             
-        # Process sensor data
-        sensor_readings = machine_data.get('sensor_data', [])
-        if not sensor_readings:
-            print(f"No sensor data available for machine ID: {machine_id}, Response: {machine_data}")
-            return jsonify({'error': f'No sensor data available for machine ID: {machine_id}. Try one of these IDs: M001 through M010'}), 404
+        # Process prediction data
+        prediction_readings = machine_data.get('prediction_data', [])
+        if not prediction_readings:
+            print(f"No prediction data available for machine ID: {machine_id}, Response: {machine_data}")
+            return jsonify({'error': f'No prediction data available for machine ID: {machine_id}. Try one of these IDs: M001 through M010'}), 404
         
         # Convert to CSV for inference.py
-        temp_csv_path = convert_to_inference_format(sensor_readings, machine_id)
+        temp_csv_path = convert_to_inference_format(prediction_readings, machine_id)
         
         # Current timestamp
         current_timestamp = datetime.now().isoformat()

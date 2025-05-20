@@ -3,6 +3,7 @@ import psycopg2
 import psycopg2.extras  # For dictionary cursor
 from dotenv import load_dotenv
 import os
+import json
 from datetime import datetime, timedelta
 
 load_dotenv()
@@ -63,7 +64,7 @@ def get_machines():
 @app.route('/predict', methods=['GET'])
 def get_predict_data():
     """
-    Get sensor data for the last 4 days for a specific machine.
+    Get prediction data for the last 4 days for a specific machine.
     This endpoint is used by the prediction agent to fetch data for making predictions.
     """
     try:
@@ -78,15 +79,15 @@ def get_predict_data():
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
-        # Query sensor data for the specified machine from the last 4 days
+        # Query prediction data for the specified machine from the last 4 days
         query = '''
-            SELECT * FROM sensor_data
+            SELECT * FROM prediction_data
             WHERE machine_id = %s AND timestamp >= %s
             ORDER BY timestamp ASC
         '''
         
         cur.execute(query, (machine_id, four_days_ago))
-        sensor_data = cur.fetchall()
+        prediction_data = cur.fetchall()
         
         # Also get machine information
         cur.execute('SELECT * FROM machines WHERE machine_id = %s', (machine_id,))
@@ -98,12 +99,12 @@ def get_predict_data():
         if not machine_info:
             return jsonify({'error': f'No machine found with ID: {machine_id}'}), 404
             
-        # Build the response with machine info and sensor readings
+        # Build the response with machine info and prediction data readings
         result = {
             'machine': dict(machine_info),
             'time_period': f'Last 4 days ({four_days_ago.isoformat()} to {datetime.now().isoformat()})',
-            'sensor_count': len(sensor_data),
-            'sensor_data': [dict(row) for row in sensor_data]
+            'prediction_count': len(prediction_data),
+            'prediction_data': [dict(row) for row in prediction_data]
         }
         
         return jsonify(result)
@@ -246,22 +247,38 @@ def add_prediction():
     """Store a new prediction from the prediction agent"""
     try:
         data = request.get_json()
-        required_fields = ['machine_id', 'predicted_failure_date', 'confidence', 'model_version']
+        required_fields = ['machine_id', 'status', 'failure_probability', 'prediction_timestamp', 'prediction_details']
         
         # Validate required fields
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Prepare SQL statement with only provided fields
-        fields = []
-        placeholders = []
-        values = []
+        # Ensure prediction_details is properly formatted for JSONB
+        prediction_details = data['prediction_details']
         
-        for key, value in data.items():
-            fields.append(key)
-            placeholders.append('%s')
-            values.append(value)
+        # If prediction_details is not already a string, convert it to a JSON string
+        if not isinstance(prediction_details, str):
+            try:
+                prediction_details = json.dumps(prediction_details)
+            except Exception as e:
+                return jsonify({'error': f'Failed to convert prediction_details to JSON: {str(e)}'}), 400
+        
+        print(f"Storing prediction for machine {data['machine_id']} with status {data['status']}")
+        
+        # Map fields to match database schema
+        db_data = {
+            'machine_id': data['machine_id'],
+            'status': data['status'],
+            'confidence': data['failure_probability'],  # Map failure_probability to confidence
+            'created_at': data['prediction_timestamp'],  # Map prediction_timestamp to created_at
+            'prediction_details': prediction_details
+        }
+        
+        # Prepare SQL statement
+        fields = list(db_data.keys())
+        placeholders = ['%s'] * len(fields)
+        values = [db_data[field] for field in fields]
         
         # Create the INSERT statement
         sql = f'''

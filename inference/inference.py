@@ -8,7 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from datetime import datetime, timedelta
 
 # File predictive_model.py must be included
-from predictive_model import create_features
+from predictive_model import create_features, align_features
 
 # --- Configurable Parameters ---
 S1_MODEL_PATH    = 'inference/predictive_model_xgb_s1.joblib'
@@ -121,8 +121,24 @@ def inference(args):
     }
 
     if prob_s1 >= 0.5:
-        prob_vec = s2_model.predict_proba(latest_s2[s2_feats])[-1]
-        labels   = label_encoder.inverse_transform(s2_model.classes_)
+        # Apply align_features to ensure all required S2 features are available
+        # This will add any missing features with default value of 0.0
+        try:
+            # Check what features are missing and log them
+            missing_features = [col for col in s2_feats if col not in latest_s2.columns]
+            if missing_features:
+                print(f"WARNING: Missing features for machine {machine_id}: {missing_features}")
+                print(f"Adding missing features with default value 0.0")
+            
+            aligned_s2_features = align_features(latest_s2, s2_feats)
+            print(f"Successfully aligned features for Stage 2 prediction")
+            prob_vec = s2_model.predict_proba(aligned_s2_features)[-1]
+            labels   = label_encoder.inverse_transform(s2_model.classes_)
+        except Exception as e:
+            print(f"ERROR during Stage 2 prediction: {str(e)}")
+            # Set empty prediction if Stage 2 fails
+            prob_vec = []
+            labels = []
 
         # Load previous prediction for Bayesian update
         prev_result = load_previous_result(machine_id, infer_ts)

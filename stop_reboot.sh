@@ -101,8 +101,8 @@ reboot_agent() {
 
 # Function to stop all agents
 stop_all_agents() {
-    # Stop in reverse order: livedata -> supervisor -> simulation_agent -> prediction_agent -> data_agent
-    stop_agent "livedata"
+    # Stop in reverse order: synthetic_data -> supervisor -> simulation_agent -> prediction_agent -> data_agent
+    stop_agent "synthetic_data"
     sleep 1
     stop_agent "supervisor"
     sleep 1
@@ -129,7 +129,7 @@ reboot_all_agents() {
     sleep 1
     start_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
     sleep 1
-    start_agent "livedata" "livedata/live_flask.py" $LIVEDATA_PORT
+    start_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
     echo -e "${GREEN}All agents rebooted.${NC}"
 }
 
@@ -161,10 +161,10 @@ display_status() {
         echo -e "${RED}Supervisor: Not running${NC}"
     fi
     
-    if is_agent_running "livedata"; then
-        echo -e "${GREEN}LiveData Generator: Running (PID: $(cat agents/pids/livedata.pid), Port: $LIVEDATA_PORT)${NC}"
+    if is_agent_running "synthetic_data"; then
+        echo -e "${GREEN}Synthetic Data Generator: Running (PID: $(cat agents/pids/synthetic_data.pid), Port: $LIVEDATA_PORT)${NC}"
     else
-        echo -e "${RED}LiveData Generator: Not running${NC}"
+        echo -e "${RED}Synthetic Data Generator: Not running${NC}"
     fi
 }
 
@@ -204,10 +204,10 @@ process_choice() {
             reboot_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
             ;;
         11)
-            stop_agent "livedata"
+            stop_agent "synthetic_data"
             ;;
         12)
-            reboot_agent "livedata" "livedata/live_flask.py" $LIVEDATA_PORT
+            reboot_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
             ;;
         13)
             display_status
@@ -254,8 +254,8 @@ while true; do
     echo "8. Reboot simulation agent"
     echo "9. Stop supervisor"
     echo "10. Reboot supervisor"
-    echo "11. Stop livedata generator"
-    echo "12. Reboot livedata generator"
+    echo "11. Stop synthetic data generator"
+    echo "12. Reboot synthetic data generator"
     echo "13. Display agent status"
     echo "14. Exit"
     read -p "Enter your choice (1-14): " choice
@@ -292,10 +292,10 @@ while true; do
             reboot_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
             ;;
         11)
-            stop_agent "livedata"
+            stop_agent "synthetic_data"
             ;;
         12)
-            reboot_agent "livedata" "livedata/live_flask.py" $LIVEDATA_PORT
+            reboot_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
             ;;
         13)
             display_status
