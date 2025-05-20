@@ -492,6 +492,51 @@ def get_machine_info(machine_id):
     except:
         return None
 
+@app.route('/simulations', methods=['POST'])
+def add_simulation():
+    """Store simulation results"""
+    try:
+        data = request.get_json()
+        required_fields = ['machine_id', 'parameters', 'results']
+        
+        # Validate required fields
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Prepare SQL statement
+        fields = ['machine_id', 'parameters', 'results']
+        values = [data['machine_id'], json.dumps(data['parameters']), json.dumps(data['results'])]
+        
+        # Add optional fields if provided
+        if 'scenario_type' in data:
+            fields.append('scenario_type')
+            values.append(data['scenario_type'])
+            
+        if 'created_by' in data:
+            fields.append('created_by')
+            values.append(data['created_by'])
+        
+        # Create the INSERT statement
+        placeholders = ['%s'] * len(fields)
+        sql = f'''
+            INSERT INTO simulations ({', '.join(fields)})
+            VALUES ({', '.join(placeholders)})
+            RETURNING id
+        '''
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(sql, values)
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'id': new_id, 'status': 'created'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/machine_list', methods=['GET'])
 def get_machine_list():
     """Get a simplified list of machine IDs and names only"""

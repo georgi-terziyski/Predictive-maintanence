@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# Set up a trap to catch Ctrl+C and ensure all child processes are terminated
+cleanup() {
+    echo -e "\n\nExiting log viewer..."
+    # Kill all background processes
+    kill $(jobs -p) 2>/dev/null
+    exit 0
+}
+
+# Trap SIGINT (Ctrl+C) and call cleanup function
+trap cleanup SIGINT
+
 # Colors for better readability
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

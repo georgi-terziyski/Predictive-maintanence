@@ -121,16 +121,24 @@ def predict():
             
         machine_id = data['machine_id']
         
-        # Fetch machine data from data agent
-        machine_data, error = fetch_machine_data(machine_id)
-        if error:
-            return jsonify({'error': error}), 500
-            
-        # Process prediction data
-        prediction_readings = machine_data.get('prediction_data', [])
-        if not prediction_readings:
-            print(f"No prediction data available for machine ID: {machine_id}, Response: {machine_data}")
-            return jsonify({'error': f'No prediction data available for machine ID: {machine_id}. Try one of these IDs: M001 through M010'}), 404
+        # Check if this is a simulation request
+        is_simulation = 'simulation_data' in data or data.get('simulation_mode', False)
+        
+        if is_simulation:
+            # Use the provided simulation data directly
+            print(f"Using simulation data for machine ID: {machine_id}")
+            prediction_readings = data['simulation_data']
+        else:
+            # Fetch machine data from data agent
+            machine_data, error = fetch_machine_data(machine_id)
+            if error:
+                return jsonify({'error': error}), 500
+                
+            # Process prediction data
+            prediction_readings = machine_data.get('prediction_data', [])
+            if not prediction_readings:
+                print(f"No prediction data available for machine ID: {machine_id}, Response: {machine_data}")
+                return jsonify({'error': f'No prediction data available for machine ID: {machine_id}. Try one of these IDs: M001 through M010'}), 404
         
         # Convert to CSV for inference.py
         temp_csv_path = convert_to_inference_format(prediction_readings, machine_id)
@@ -169,11 +177,18 @@ def predict():
             
         result = json.loads(json_match.group(1))
         
-        # Store prediction
+        # Store prediction only if it's not a simulation
         result_data = result[0]  # First item in the list
-        success, result_id = store_prediction(machine_id, result_data)
-        if not success:
-            print(f"Warning: Failed to store prediction: {result_id}")
+        success = False
+        result_id = None
+        
+        if not is_simulation:
+            # Only store the prediction if it's not from a simulation
+            success, result_id = store_prediction(machine_id, result_data)
+            if not success:
+                print(f"Warning: Failed to store prediction: {result_id}")
+        else:
+            print(f"Skipping database storage for simulation prediction")
         
         # Enhanced response with additional details
         response_data = {
