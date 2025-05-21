@@ -113,7 +113,7 @@ def get_predict_data():
 
 @app.route('/live_data', methods=['GET'])
 def get_live_data():
-    """Get latest sensor data for all machines or a specific machine"""
+    """Get latest sensor data for all machines or last 50 entries for a specific machine"""
     try:
         machine_id = request.args.get('machine_id')
         
@@ -122,14 +122,10 @@ def get_live_data():
         
         if machine_id:
             query = '''
-                SELECT s.* FROM sensor_data s
-                INNER JOIN (
-                    SELECT machine_id, MAX(timestamp) as max_time 
-                    FROM sensor_data 
-                    WHERE machine_id = %s
-                    GROUP BY machine_id
-                ) latest
-                ON s.machine_id = latest.machine_id AND s.timestamp = latest.max_time;
+                SELECT * FROM sensor_data
+                WHERE machine_id = %s
+                ORDER BY timestamp DESC
+                LIMIT 50
             '''
             cur.execute(query, (machine_id,))
         else:
