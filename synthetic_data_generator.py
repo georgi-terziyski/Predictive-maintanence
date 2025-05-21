@@ -38,10 +38,10 @@ app = Flask(__name__)
 
 # --- Database Configuration ---
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'dbname': os.getenv('DB_NAME', 'predictive_maintenance'),
-    'user': os.getenv('DB_USER', 'georgi'),
-    'password': os.getenv('DB_PASSWORD', 'B-b0yism1985')
+    'host': os.getenv('DB_HOST'),
+    'dbname': os.getenv('DB_NAME'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD')
 }
 
 # --- Configuration Constants ---
