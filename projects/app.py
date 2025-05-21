@@ -169,29 +169,42 @@ def move_models():
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, 'Predictive-maintanence', 'projects', 'final_models')
-INFERENCE_DIR = os.path.join(PROJECT_ROOT, 'Predictive-maintanence', 'inference')
+FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, 'Predictive-Maintanence', 'projects', 'final_models')
+INFERENCE_DIR = os.path.join(PROJECT_ROOT, 'Predictive-Maintanence', 'inference')
 HISTORY_DIR = os.path.join(INFERENCE_DIR, 'history')
 
-FILES_TO_PROCESS = ['feature_columns_xgb_s1.joblib', 'predictive_model_xgb_s1.joblib', 'stage2_class_encoder.joblib', 'stage2_features_W84_H84_temp.joblib', 'stage2_model_W84_H84_temp.joblib']
+FILES_TO_PROCESS = [
+    'feature_columns_xgb_s1.joblib',
+    'predictive_model_xgb_s1.joblib',
+    'stage2_class_encoder.joblib',
+    'stage2_features_W84_H84_temp.joblib',
+    'stage2_model_W84_H84_temp.joblib'
+]
 
 @app.route('/deploy-model', methods=['POST'])
 def update_models():
     try:
-        # Create timestamped folder under history
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         archive_dir = os.path.join(HISTORY_DIR, timestamp)
         os.makedirs(archive_dir, exist_ok=True)
 
-        # Move old models to history
+        moved_files = []
+        skipped_archive = []
+        copied_files = []
+        newly_added = []
+
+        # Move existing inference models to history
         for filename in FILES_TO_PROCESS:
             current_model_path = os.path.join(INFERENCE_DIR, filename)
             archive_path = os.path.join(archive_dir, filename)
 
             if os.path.exists(current_model_path):
                 shutil.move(current_model_path, archive_path)
+                moved_files.append(filename)
+            else:
+                skipped_archive.append(filename)
 
-        # Copy new models from final_models to inference
+        # Copy from final_models to inference
         for filename in FILES_TO_PROCESS:
             new_model_path = os.path.join(FINAL_MODELS_DIR, filename)
             target_path = os.path.join(INFERENCE_DIR, filename)
@@ -199,16 +212,24 @@ def update_models():
             if os.path.exists(new_model_path):
                 shutil.copy(new_model_path, target_path)
                 os.remove(new_model_path)
+                copied_files.append(filename)
+                if filename in skipped_archive:
+                    newly_added.append(filename)
             else:
                 return jsonify({"error": f"New model not found: {new_model_path}"}), 404
 
         return jsonify({
-            "message": "Models updated successfully",
-            "archived_to": archive_dir
+            "message": "Models deployed successfully",
+            "archived_to": archive_dir,
+            "archived_files": moved_files,
+            "newly_added_files": newly_added,
+            "copied_to_inference": copied_files
         }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 
 
 if __name__ == '__main__':
