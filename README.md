@@ -27,20 +27,59 @@ graph TD
     B --> F[(Database)]
     C --> G[ML Model]
     D --> H[Scenario Engine]
+    I[Synthetic Data Generator] --> F
 ```
 
 - **Supervisor Service** - Coordinates communication between agents (port 5000)
 - **Data Agent** - Fetches live machine data from database (port 5001)
 - **Prediction Agent** - Runs ML predictions on incoming data (port 5002)
 - **Simulation Agent** - Performs what-if scenario modeling (port 5003)
+- **Synthetic Data Generator** - Creates realistic machine data with anomalies (port 5006)
 
-## System Requirements
+## Prerequisites
 
-- Python 3.10.16 (higher versions might cause problems with some of the requiered packages)
-- PostgreSQL database
-- Required Python packages (see requirements.txt)
+### System Requirements
 
-## Quick Start
+- **Operating System**: Linux (preferred), macOS, or Windows with WSL
+- **Hardware**: 
+  - Minimum: 2GB RAM, 2 CPU cores, 10GB disk space
+  - Recommended: 4GB RAM, 4 CPU cores, 20GB disk space
+- **Software**:
+  - Python 3.10.16 (higher versions might cause compatibility issues with some packages)
+  - PostgreSQL 13.0 or higher
+  - Git (for cloning the repository)
+- **Network**: All agents communicate over HTTP, so ports 5000-5006 should be available
+
+### PostgreSQL Setup
+
+1. Install PostgreSQL:
+   ```bash
+   # For Ubuntu/Debian
+   sudo apt update
+   sudo apt install postgresql postgresql-contrib
+
+   # For macOS (with Homebrew)
+   brew install postgresql
+   brew services start postgresql
+
+   # For Windows
+   # Download and install from https://www.postgresql.org/download/windows/
+   ```
+
+2. Create database and user:
+   ```bash
+   sudo -u postgres psql
+   ```
+
+   Then in the PostgreSQL prompt:
+   ```sql
+   CREATE DATABASE predictive_maintenance;
+   CREATE USER predictive WITH PASSWORD 'your_secure_password';
+   GRANT ALL PRIVILEGES ON DATABASE predictive_maintenance TO predictive;
+   \q
+   ```
+
+## Complete Installation Guide
 
 ### 1. Clone the Repository
 
@@ -49,97 +88,313 @@ git clone <repository-url>
 cd predictive-maintenance
 ```
 
-### 2. Run Setup Script
+### 2. Set Up Python Environment
+
+```bash
+# Create and activate a virtual environment
+python -m venv venv
+
+# On Linux/macOS
+source venv/bin/activate
+
+# On Windows
+venv\Scripts\activate
+
+# Install required packages
+pip install -r requirements.txt
+```
+
+### 3. Configure Environment Variables
+
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Edit the .env file with your database credentials and other settings
+nano .env  # or use any text editor
+```
+
+Required configuration in `.env`:
+```
+DB_HOST=localhost
+DB_NAME=predictive_maintenance
+DB_USER=predictive
+DB_PASSWORD=your_secure_password
+DATA_AGENT_PORT=5001
+SUPERVISOR_PORT=5000
+PREDICTION_AGENT_PORT=5002
+SIMULATION_AGENT_PORT=5003
+SYNTHETIC_DATA_PORT=5006
+```
+
+### 4. Initialize Database
+
+```bash
+# Initialize database schema
+psql -U predictive -d predictive_maintenance -f data/schema.sql
+
+# Load default values (optional)
+psql -U predictive -d predictive_maintenance -f data/defaults.sql
+```
+
+### 5. Automated Setup (Alternative to steps 2-4)
+
+The project includes a setup script that automates the environment setup:
 
 ```bash
 # Run setup using the Makefile
 make setup
+
+# Or run the setup script directly
+./setup.sh
 ```
 
 This will:
 - Install required Python packages
-- Create .env file from template (adjust as needed)
-- Set up PostgreSQL database
-- Initialize database schema and defaults
-- Create placeholder ML model
+- Create `.env` file from template (you'll be prompted to edit)
+- Set up database schema
+- Initialize database defaults
+- Create placeholder ML model if needed
 
-### 3. Start the System
+## Running the System
+
+### Starting All Components
+
+For first-time users, the easiest way to start the system is using the run script:
 
 ```bash
+# Using Makefile
 make run
+
+# Or directly
+./run.sh
 ```
 
-Select option 1 to start all agents or select specific agents to run.
+This will present a menu to:
+- Start all agents
+- Start specific agents
+- View system status
 
-### 4. System Management
+### Starting Individual Components
 
-To stop or reboot agents:
+If you need more control, you can start each component separately:
 
 ```bash
-# Open the stop/reboot interface
-make stop-reboot
+# Start supervisor agent
+python agents/supervisor/app.py
 
-# Or use direct commands:
-make stop      # Stop all agents
-make reboot    # Reboot all agents
-make status    # Show agent status
+# Start data agent
+python agents/data_agent/app.py
+
+# Start prediction agent
+python agents/prediction_agent/app.py
+
+# Start simulation agent
+python agents/simulation_agent/app.py
+
+# Start synthetic data generator
+python synthetic_data_generator.py
 ```
 
-This provides a menu-driven interface to:
+Note: The recommended startup order is:
+1. Data Agent
+2. Prediction Agent
+3. Simulation Agent
+4. Supervisor Agent
+5. Synthetic Data Generator
+
+### Verifying Successful Startup
+
+To confirm all components are running correctly:
+
+1. Check health endpoints:
+   ```bash
+   curl http://localhost:5000/health  # Supervisor
+   curl http://localhost:5001/health  # Data Agent
+   curl http://localhost:5002/health  # Prediction Agent
+   curl http://localhost:5003/health  # Simulation Agent
+   curl http://localhost:5006/health  # Synthetic Data Generator
+   ```
+
+2. Check for live data:
+   ```bash
+   curl http://localhost:5001/live_data
+   ```
+
+3. View logs:
+   ```bash
+   # View synthetic data generator logs
+   ./view_synthetic_data_log.sh
+   
+   # View general logs
+   ./view_logs.sh
+   ```
+
+## System Management
+
+### Managing Running Agents
+
+```bash
+# Open the management interface
+make stop-reboot
+# Or
+./stop_reboot.sh
+```
+
+This interface allows you to:
 - Stop all agents
 - Reboot all agents
 - Stop or reboot individual agents
 - View system status
 
-## Makefile Usage
-
-The project includes a Makefile that allows you to run the system scripts without requiring execute permissions:
+### Direct Commands
 
 ```bash
-make           # Display available commands
-make setup     # Set up the system
-make run       # Run the system
 make stop      # Stop all agents
 make reboot    # Reboot all agents
-make status    # Display agent status
-make stop-reboot # Open the stop/reboot interface
+make status    # Show agent status
 ```
 
-This is especially useful when pulling the code into a new environment where file permissions might not be preserved.
+### Log Files
 
-## Configuration
+The system generates various log files:
 
-The system is configured through a `.env` file. An example template is provided in `.env.example`:
+- **General logs**: Located in the `logs/` directory
+- **Synthetic data logs**: `logs/synthetic_data.log`
+- **Agent-specific logs**: Located in the respective agent directories
 
-```
-DB_HOST=localhost
-DB_NAME=predictive_maintenance
-DB_USER=your_username
-DB_PASSWORD=your_password
-DATA_AGENT_PORT=5001
-SUPERVISOR_PORT=5000
-PREDICTION_AGENT_PORT=5002
-SIMULATION_AGENT_PORT=5003
+To view logs in real-time:
+```bash
+tail -f logs/synthetic_data.log
 ```
 
-Copy this file to `.env` and update the values according to your environment. The setup script will do this for you and prompt you to edit the values.
+## Data Generation and Simulation
 
-## Database Structure
+### Synthetic Data Generator
 
-The system uses a PostgreSQL database with the following tables:
+The system includes a synthetic data generator that creates realistic machine sensor data, including anomaly patterns that can lead to failures. This component:
 
-1. **machines** - Information about each machine being monitored
-2. **sensor_data** - Time-series sensor readings from the machines
-3. **predictions** - Machine learning predictions for potential failures
-4. **simulations** - Data about simulation scenarios run on machines
-5. **maintenance** - Records of maintenance activities
-6. **defaults** - System-wide and machine-specific threshold values and configuration
+1. Generates baseline sensor readings for all machines
+2. Periodically introduces anomalies that develop over time
+3. Saves data to both the `sensor_data` and `prediction_data` tables
+4. Automatically triggers predictions when new data is available
 
-See the [Database README](data/README.md) for detailed schema information and database setup instructions.
+The generator runs on a 30-second cycle by default and introduces anomalies randomly with configurable probabilities.
+
+### Running Predictions
+
+Predictions are automatically triggered when new data is saved to the `prediction_data` table. To manually trigger a prediction:
+
+```bash
+curl -X POST http://localhost:5002/predict -H "Content-Type: application/json" -d '{"machine_id": "M001"}'
+```
+
+### Running Simulations
+
+To run a what-if simulation:
+
+```bash
+curl -X POST http://localhost:5003/simulate -H "Content-Type: application/json" -d '{
+  "machine_id": "M001",
+  "scenario": "temperature_increase",
+  "parameters": {
+    "increase_amount": 15,
+    "duration_hours": 4
+  }
+}'
+```
+
+## Troubleshooting Guide
+
+### Common Issues and Solutions
+
+1. **Database Connection Issues**
+   - Verify PostgreSQL is running: `pg_isready`
+   - Check database credentials in `.env`
+   - Ensure the database exists: `psql -U postgres -c "SELECT datname FROM pg_database"`
+
+2. **Agent Won't Start**
+   - Check if port is already in use: `netstat -tuln | grep PORT_NUMBER`
+   - Verify the agent's dependencies are running (e.g., data agent must be running for prediction agent)
+   - Check log files for specific error messages
+
+3. **No Predictions Generated**
+   - Verify prediction agent is running: `curl http://localhost:5002/health`
+   - Check if there's data in the `prediction_data` table
+   - Manually trigger a prediction to see if there are errors
+
+4. **Missing Libraries or Modules**
+   - Ensure virtual environment is activated
+   - Reinstall dependencies: `pip install -r requirements.txt`
+
+### Diagnostic Commands
+
+```bash
+# List running Python processes
+ps aux | grep python
+
+# Check database tables
+psql -U predictive -d predictive_maintenance -c "SELECT COUNT(*) FROM sensor_data"
+psql -U predictive -d predictive_maintenance -c "SELECT COUNT(*) FROM predictions"
+
+# Check prediction data for a specific machine
+curl http://localhost:5001/prediction-data/M001
+```
+
+## Advanced Configuration
+
+### Environment Variables
+
+Key environment variables that can be configured in `.env`:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| DB_HOST | PostgreSQL host | localhost |
+| DB_NAME | Database name | predictive_maintenance |
+| DB_USER | Database username | - |
+| DB_PASSWORD | Database password | - |
+| SUPERVISOR_PORT | Supervisor agent port | 5000 |
+| DATA_AGENT_PORT | Data agent port | 5001 |
+| PREDICTION_AGENT_PORT | Prediction agent port | 5002 |
+| SIMULATION_AGENT_PORT | Simulation agent port | 5003 |
+| SYNTHETIC_DATA_PORT | Synthetic data generator port | 5006 |
+| PREDICTION_HORIZON_DAYS | Days to predict ahead | 30 |
+| DATA_INTERVAL_SECONDS | Seconds between data generation | 30 |
+| PREDICTION_INTERVAL_ITERATIONS | Iterations between writing to prediction_data | 60 |
+
+### Fine-tuning the ML Model
+
+The prediction system uses a trained XGBoost model. To retrain or fine-tune:
+
+1. Collect sufficient failure data
+2. Adjust hyperparameters in `predictive_model.py`
+3. Run training:
+   ```bash
+   python inference/run_grid_search.py
+   ```
+
+### Production Deployment Considerations
+
+For production deployment:
+- Use a process manager like Supervisor or PM2
+- Set up a reverse proxy (Nginx/Apache) for API endpoints
+- Configure proper database backups
+- Implement proper authentication for API endpoints
+
+#### Docker Deployment (Optional)
+
+The system can be containerized using Docker:
+
+1. Build images:
+   ```bash
+   docker build -t predictive-maintenance-supervisor -f Dockerfile.supervisor .
+   # Repeat for other agents
+   ```
+
+2. Create a docker-compose.yml file for orchestration
+3. Run with `docker-compose up`
 
 ## API Documentation
-
-The system exposes several REST API endpoints:
 
 ### Supervisor Endpoints
 
@@ -155,8 +410,19 @@ The system exposes several REST API endpoints:
 - `GET /machines` - Get all machine details
 - `GET /machine_list` - Get simplified list of machine IDs and names
 - `GET /live_data` - Get latest sensor readings
+- `GET /live_data?machine_id=M001` - Get latest sensor readings for a specific machine
 - `GET /historical_data` - Get historical sensor data
 - `GET /defaults` - Get system and machine-specific thresholds
+
+### Prediction Agent Endpoints
+
+- `GET /health` - Agent health check
+- `POST /predict` - Run prediction for a machine
+
+### Simulation Agent Endpoints
+
+- `GET /health` - Agent health check
+- `POST /simulate` - Run a simulation scenario
 
 For complete API documentation, see the [Agents README](agents/README.md).
 
@@ -200,11 +466,16 @@ print(prediction.json())
   - **simulation_agent/** - Scenario simulation agent
   - **supervisor/** - Agent coordination service
   - **models/** - Machine learning model files
+  - **pids/** - Process ID files for running agents
 - **data/** - Database schema and sample data
 - **chat/** - Chat interface components
+- **inference/** - Machine learning model inference code
+- **logs/** - Log files directory
+- **training/** - Model training code and data
 - **setup.sh** - System setup script
 - **run.sh** - Script to start the system
 - **stop_reboot.sh** - Script to manage running agents
+- **synthetic_data_generator.py** - Generates synthetic sensor data
 
 ## Detailed Documentation
 
@@ -212,12 +483,40 @@ print(prediction.json())
 - [Data README](data/README.md) - Database schema, setup instructions, and data import procedures
 - [Chat Components](chat/) - Chat interface functionality
 
-## Troubleshooting
+## Maintenance and Updates
 
-If you encounter issues:
+### Backup Procedures
 
-1. Check if the PostgreSQL database is running
-2. Verify the environment variables in `.env` are correct
-3. Check agent logs for specific error messages
-4. Use the status display in `./run.sh` or `./stop_reboot.sh` to verify which agents are running
-5. Ensure all required ports are available and not blocked by firewall
+1. **Database Backup**:
+   ```bash
+   pg_dump -U predictive predictive_maintenance > backup_$(date +%Y%m%d).sql
+   ```
+
+2. **Configuration Backup**:
+   ```bash
+   cp .env .env.backup_$(date +%Y%m%d)
+   ```
+
+### Upgrading the System
+
+1. Pull the latest code:
+   ```bash
+   git pull origin main
+   ```
+
+2. Update dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Apply any database migrations (if provided)
+4. Restart the system:
+   ```bash
+   make reboot
+   ```
+
+## Support and Contributing
+
+For support issues, please contact the project maintainers or create an issue in the project repository.
+
+Contributions are welcome - please follow the standard GitHub pull request process and ensure all tests pass before submitting.

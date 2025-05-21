@@ -8,14 +8,14 @@ from sklearn.preprocessing import LabelEncoder
 from datetime import datetime, timedelta
 
 # File predictive_model.py must be included
-from predictive_model import create_features
+from predictive_model import create_features, align_features
 
 # --- Configurable Parameters ---
-S1_MODEL_PATH    = 'predictive_model_xgb_s1.joblib'
-S1_FEATURES_PATH = 'feature_columns_xgb_s1.joblib'
-S2_MODEL_PATH    = 'stage2_model_W84_H84_temp.joblib'
-S2_FEATURES_PATH = 'stage2_features_W84_H84_temp.joblib'
-S2_ENCODER_PATH  = 'stage2_class_encoder.joblib'
+S1_MODEL_PATH    = 'inference/predictive_model_xgb_s1.joblib'
+S1_FEATURES_PATH = 'inference/feature_columns_xgb_s1.joblib'
+S2_MODEL_PATH    = 'inference/stage2_model_W84_H84_temp.joblib'
+S2_FEATURES_PATH = 'inference/stage2_features_W84_H84_temp.joblib'
+S2_ENCODER_PATH  = 'inference/stage2_class_encoder.joblib'
 
 # --- JSON Sanitization ---
 def sanitize_for_json(obj):
@@ -70,15 +70,15 @@ def apply_model(model, features_df, expected_features):
 
 def load_previous_result(machine_id, current_ts):
     prev_ts = current_ts - timedelta(minutes=30)
-    fname = f"preds/{machine_id}_{prev_ts:%Y%m%d_%H%M}.json"
+    fname = f"inference/preds/{machine_id}_{prev_ts:%Y%m%d_%H%M}.json"
     if os.path.exists(fname):
         with open(fname, "r") as f:
             return json.load(f)[0]  # in one-element list
     return None
 
 def save_current_result(machine_id, current_ts, result):
-    os.makedirs("preds", exist_ok=True)
-    fname = f"preds/{machine_id}_{current_ts:%Y%m%d_%H%M}.json"
+    os.makedirs("inference/preds", exist_ok=True)
+    fname = f"inference/preds/{machine_id}_{current_ts:%Y%m%d_%H%M}.json"
     with open(fname, "w") as f:
         json.dump([sanitize_for_json(result)], f, indent=2)
 
@@ -121,8 +121,24 @@ def inference(args):
     }
 
     if prob_s1 >= 0.5:
-        prob_vec = s2_model.predict_proba(latest_s2[s2_feats])[-1]
-        labels   = label_encoder.inverse_transform(s2_model.classes_)
+        # Apply align_features to ensure all required S2 features are available
+        # This will add any missing features with default value of 0.0
+        try:
+            # Check what features are missing and log them
+            missing_features = [col for col in s2_feats if col not in latest_s2.columns]
+            if missing_features:
+                print(f"WARNING: Missing features for machine {machine_id}: {missing_features}")
+                print(f"Adding missing features with default value 0.0")
+            
+            aligned_s2_features = align_features(latest_s2, s2_feats)
+            print(f"Successfully aligned features for Stage 2 prediction")
+            prob_vec = s2_model.predict_proba(aligned_s2_features)[-1]
+            labels   = label_encoder.inverse_transform(s2_model.classes_)
+        except Exception as e:
+            print(f"ERROR during Stage 2 prediction: {str(e)}")
+            # Set empty prediction if Stage 2 fails
+            prob_vec = []
+            labels = []
 
         # Load previous prediction for Bayesian update
         prev_result = load_previous_result(machine_id, infer_ts)
@@ -192,14 +208,16 @@ def inference(args):
     #print(s2_model.classes_)
     #print(labels)
     print("\n--- Inference Script Finished ---")
+    
+    return result
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run dual-stage inference for a given machine and timestamp.")
     parser.add_argument('--current_timestamp', type=str, required=True, help='Timestamp to run inference for')
     parser.add_argument('--input_data', type=str, required=True, help='Sensor CSV file')
-    parser.add_argument('--equipment_file', type=str, default='data/10apr/equipment_usage.csv')
-    parser.add_argument('--failure_file', type=str, default='data/10apr/failure_logs.csv')
-    parser.add_argument('--maintenance_file', type=str, default='data/10apr/maintenance_history.csv')
+    parser.add_argument('--equipment_file', type=str, default='inference/data/10apr/equipment_usage.csv')
+    parser.add_argument('--failure_file', type=str, default='inference/data/10apr/failure_logs.csv')
+    parser.add_argument('--maintenance_file', type=str, default='inference/data/10apr/maintenance_history.csv')
     parser.add_argument('--machine_id', type=str, required=True, help='Machine ID to run inference for')
     parser.add_argument('--window_s1', type=int, default=24, help='Feature window for Stage 1')
     parser.add_argument('--horizon_s1', type=int, default=48, help='Prediction horizon for Stage 1')
@@ -208,5 +226,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     infer_ts = pd.Timestamp(args.current_timestamp)
-    inference(args)
-    
+    result = inference(args)
+    # Result is already printed and saved inside the inference function

@@ -101,7 +101,9 @@ reboot_agent() {
 
 # Function to stop all agents
 stop_all_agents() {
-    # Stop in reverse order: supervisor -> simulation_agent -> prediction_agent -> data_agent
+    # Stop in reverse order: synthetic_data -> supervisor -> simulation_agent -> prediction_agent -> data_agent
+    stop_agent "synthetic_data"
+    sleep 1
     stop_agent "supervisor"
     sleep 1
     stop_agent "simulation_agent"
@@ -126,6 +128,8 @@ reboot_all_agents() {
     start_agent "simulation_agent" "agents/simulation_agent/app.py" $SIMULATION_AGENT_PORT
     sleep 1
     start_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
+    sleep 1
+    start_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
     echo -e "${GREEN}All agents rebooted.${NC}"
 }
 
@@ -155,6 +159,12 @@ display_status() {
         echo -e "${GREEN}Supervisor: Running (PID: $(cat agents/pids/supervisor.pid), Port: $SUPERVISOR_PORT)${NC}"
     else
         echo -e "${RED}Supervisor: Not running${NC}"
+    fi
+    
+    if is_agent_running "synthetic_data"; then
+        echo -e "${GREEN}Synthetic Data Generator: Running (PID: $(cat agents/pids/synthetic_data.pid), Port: $LIVEDATA_PORT)${NC}"
+    else
+        echo -e "${RED}Synthetic Data Generator: Not running${NC}"
     fi
 }
 
@@ -194,9 +204,15 @@ process_choice() {
             reboot_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
             ;;
         11)
-            display_status
+            stop_agent "synthetic_data"
             ;;
         12)
+            reboot_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
+            ;;
+        13)
+            display_status
+            ;;
+        14)
             echo -e "${GREEN}Exiting.${NC}"
             exit 0
             ;;
@@ -238,9 +254,11 @@ while true; do
     echo "8. Reboot simulation agent"
     echo "9. Stop supervisor"
     echo "10. Reboot supervisor"
-    echo "11. Display agent status"
-    echo "12. Exit"
-    read -p "Enter your choice (1-12): " choice
+    echo "11. Stop synthetic data generator"
+    echo "12. Reboot synthetic data generator"
+    echo "13. Display agent status"
+    echo "14. Exit"
+    read -p "Enter your choice (1-14): " choice
     
     case $choice in
         1)
@@ -274,9 +292,15 @@ while true; do
             reboot_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
             ;;
         11)
-            display_status
+            stop_agent "synthetic_data"
             ;;
         12)
+            reboot_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
+            ;;
+        13)
+            display_status
+            ;;
+        14)
             echo -e "${GREEN}Exiting.${NC}"
             exit 0
             ;;

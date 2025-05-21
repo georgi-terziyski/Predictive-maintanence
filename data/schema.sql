@@ -1,110 +1,191 @@
--- Create machines table
-CREATE TABLE machines (
-    machine_id VARCHAR(10) PRIMARY KEY,
-    name VARCHAR(100),
-    type VARCHAR(50),
-    location VARCHAR(100),
-    status VARCHAR(20) DEFAULT 'active',
-    installation_date TIMESTAMP,
-    last_maintenance_date TIMESTAMP,
-    specifications JSONB
+-- public.failure_logs definition
+
+-- Drop table
+
+-- DROP TABLE public.failure_logs;
+
+CREATE TABLE public.failure_logs (
+	machine_id text NULL,
+	"timestamp" timestamp NULL,
+	failure_type text NULL
 );
 
--- Create sensor_data table
-CREATE TABLE sensor_data (
-    id SERIAL PRIMARY KEY,
-    machine_id VARCHAR(10) REFERENCES machines(machine_id),
-    timestamp TIMESTAMP NOT NULL,
-    afr FLOAT,
-    current FLOAT,
-    pressure FLOAT,
-    rpm FLOAT,
-    temperature FLOAT,
-    vibration FLOAT,
-    CONSTRAINT unique_machine_reading UNIQUE(machine_id, timestamp)
+
+-- public.machines definition
+
+-- Drop table
+
+-- DROP TABLE public.machines;
+
+CREATE TABLE public.machines (
+	machine_id varchar(10) NOT NULL,
+	"name" varchar(100) NULL,
+	"type" varchar(50) NULL,
+	"location" varchar(100) NULL,
+	status varchar(20) DEFAULT 'active'::character varying NULL,
+	installation_date timestamp NULL,
+	last_maintenance_date timestamp NULL,
+	specifications jsonb NULL,
+	CONSTRAINT machines_pkey PRIMARY KEY (machine_id)
 );
 
--- Create predictions table
-CREATE TABLE predictions (
-    id SERIAL PRIMARY KEY,
-    machine_id VARCHAR(10) REFERENCES machines(machine_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    predicted_failure_date TIMESTAMP,
-    confidence FLOAT,
-    model_version VARCHAR(20),
-    prediction_details JSONB
+
+-- public.maintenance_history definition
+
+-- Drop table
+
+-- DROP TABLE public.maintenance_history;
+
+CREATE TABLE public.maintenance_history (
+	machine_id text NULL,
+	"timestamp" timestamp NULL,
+	maintenance_action text NULL
 );
 
--- Create simulations table
-CREATE TABLE simulations (
-    id SERIAL PRIMARY KEY,
-    machine_id VARCHAR(10) REFERENCES machines(machine_id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    scenario_type VARCHAR(50),
-    parameters JSONB,
-    results JSONB,
-    created_by VARCHAR(50)
+
+-- public.prediction_data definition
+
+-- Drop table
+
+-- DROP TABLE public.prediction_data;
+
+CREATE TABLE public.prediction_data (
+	id serial4 NOT NULL,
+	machine_id text NULL,
+	"timestamp" timestamp NOT NULL,
+	afr float8 NULL,
+	"current" float8 NULL,
+	pressure float8 NULL,
+	rpm int4 NULL,
+	temperature float8 NULL,
+	vibration float8 NULL,
+	CONSTRAINT sensor_data_pkey_1 PRIMARY KEY (id),
+	CONSTRAINT unique_machine_reading_1 UNIQUE (machine_id, "timestamp")
+);
+CREATE INDEX idx_sensor_data_machine_id_1 ON public.prediction_data USING btree (machine_id);
+CREATE INDEX idx_sensor_data_timestamp_1 ON public.prediction_data USING btree ("timestamp");
+
+
+-- public.projects definition
+
+-- Drop table
+
+-- DROP TABLE public.projects;
+
+CREATE TABLE public.projects (
+	"project name" varchar NOT NULL,
+	id bigserial NOT NULL,
+	CONSTRAINT projects_pkey PRIMARY KEY (id)
 );
 
--- Create defaults table with machine_id reference
-CREATE TABLE defaults (
-    id SERIAL PRIMARY KEY,
-    machine_id VARCHAR(10) REFERENCES machines(machine_id),
-    category VARCHAR(50) NOT NULL,
-    key VARCHAR(50) NOT NULL,
-    value TEXT,
-    description TEXT,
-    CONSTRAINT unique_machine_category_key UNIQUE(machine_id, category, key)
+
+-- public."defaults" definition
+
+-- Drop table
+
+-- DROP TABLE public."defaults";
+
+CREATE TABLE public."defaults" (
+	id serial4 NOT NULL,
+	machine_id varchar(10) NULL,
+	category varchar(50) NOT NULL,
+	"key" varchar(50) NOT NULL,
+	value text NULL,
+	description text NULL,
+	CONSTRAINT defaults_pkey PRIMARY KEY (id),
+	CONSTRAINT unique_machine_category_key UNIQUE (machine_id, category, key),
+	CONSTRAINT defaults_machine_id_fkey FOREIGN KEY (machine_id) REFERENCES public.machines(machine_id)
 );
+CREATE INDEX idx_defaults_machine_id ON public.defaults USING btree (machine_id);
 
--- Create maintenance table
-CREATE TABLE maintenance (
-    id SERIAL PRIMARY KEY,
-    machine_id VARCHAR(10) REFERENCES machines(machine_id),
-    maintenance_date TIMESTAMP NOT NULL,
-    completion_date TIMESTAMP,
-    maintenance_type VARCHAR(50) NOT NULL,
-    reason TEXT NOT NULL,
-    work_performed TEXT,
-    technician_name VARCHAR(100),
-    technician_comments TEXT,
-    parts_replaced TEXT,
-    status VARCHAR(20) DEFAULT 'completed',
-    downtime_hours FLOAT,
-    cost DECIMAL(10,2),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+-- public.maintenance definition
+
+-- Drop table
+
+-- DROP TABLE public.maintenance;
+
+CREATE TABLE public.maintenance (
+	id serial4 NOT NULL,
+	machine_id varchar(10) NULL,
+	maintenance_date timestamp NOT NULL,
+	completion_date timestamp NULL,
+	maintenance_type varchar(50) NOT NULL,
+	reason text NOT NULL,
+	work_performed text NULL,
+	technician_name varchar(100) NULL,
+	technician_comments text NULL,
+	parts_replaced text NULL,
+	status varchar(20) DEFAULT 'completed'::character varying NULL,
+	downtime_hours float8 NULL,
+	"cost" numeric(10, 2) NULL,
+	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	updated_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	CONSTRAINT maintenance_pkey PRIMARY KEY (id),
+	CONSTRAINT maintenance_machine_id_fkey FOREIGN KEY (machine_id) REFERENCES public.machines(machine_id)
 );
+CREATE INDEX idx_maintenance_date ON public.maintenance USING btree (maintenance_date);
+CREATE INDEX idx_maintenance_machine_id ON public.maintenance USING btree (machine_id);
 
--- Create index for better query performance
-CREATE INDEX idx_maintenance_machine_id ON maintenance(machine_id);
-CREATE INDEX idx_maintenance_date ON maintenance(maintenance_date);
 
--- Create function to update last maintenance date
-CREATE OR REPLACE FUNCTION update_machine_last_maintenance()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Update the machines table last_maintenance_date when maintenance is completed
-    IF NEW.status = 'completed' THEN
-        UPDATE machines
-        SET last_maintenance_date = NEW.completion_date
-        WHERE machine_id = NEW.machine_id;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- public.predictions definition
 
--- Create trigger to call the function after maintenance insert/update
-CREATE TRIGGER after_maintenance_update
-AFTER INSERT OR UPDATE ON maintenance
-FOR EACH ROW
-EXECUTE FUNCTION update_machine_last_maintenance();
+-- Drop table
 
--- Create index for better query performance
-CREATE INDEX idx_defaults_machine_id ON defaults(machine_id);
+-- DROP TABLE public.predictions;
 
--- Create indexes for better query performance
-CREATE INDEX idx_sensor_data_machine_id ON sensor_data(machine_id);
-CREATE INDEX idx_sensor_data_timestamp ON sensor_data(timestamp);
-CREATE INDEX idx_predictions_machine_id ON predictions(machine_id);
-CREATE INDEX idx_simulations_machine_id ON simulations(machine_id);
+CREATE TABLE public.predictions (
+	id serial4 NOT NULL,
+	machine_id varchar(10) NULL,
+	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	confidence float8 NULL,
+	prediction_details jsonb NULL,
+	status varchar NOT NULL,
+	CONSTRAINT predictions_pkey PRIMARY KEY (id),
+	CONSTRAINT predictions_machine_id_fkey FOREIGN KEY (machine_id) REFERENCES public.machines(machine_id)
+);
+CREATE INDEX idx_predictions_machine_id ON public.predictions USING btree (machine_id);
+
+
+-- public.sensor_data definition
+
+-- Drop table
+
+-- DROP TABLE public.sensor_data;
+
+CREATE TABLE public.sensor_data (
+	id serial4 NOT NULL,
+	machine_id text NULL,
+	"timestamp" timestamp NOT NULL,
+	afr float8 NULL,
+	"current" float8 NULL,
+	pressure float8 NULL,
+	rpm int4 NULL,
+	temperature float8 NULL,
+	vibration float8 NULL,
+	CONSTRAINT sensor_data_pkey PRIMARY KEY (id),
+	CONSTRAINT unique_machine_reading UNIQUE (machine_id, "timestamp"),
+	CONSTRAINT sensor_data_machine_id_fkey FOREIGN KEY (machine_id) REFERENCES public.machines(machine_id)
+);
+CREATE INDEX idx_sensor_data_machine_id ON public.sensor_data USING btree (machine_id);
+CREATE INDEX idx_sensor_data_timestamp ON public.sensor_data USING btree ("timestamp");
+
+
+-- public.simulations definition
+
+-- Drop table
+
+-- DROP TABLE public.simulations;
+
+CREATE TABLE public.simulations (
+	id serial4 NOT NULL,
+	machine_id varchar(10) NULL,
+	created_at timestamp DEFAULT CURRENT_TIMESTAMP NULL,
+	scenario_type varchar(50) NULL,
+	parameters jsonb NULL,
+	results jsonb NULL,
+	created_by varchar(50) NULL,
+	CONSTRAINT simulations_pkey PRIMARY KEY (id),
+	CONSTRAINT simulations_machine_id_fkey FOREIGN KEY (machine_id) REFERENCES public.machines(machine_id)
+);
+CREATE INDEX idx_simulations_machine_id ON public.simulations USING btree (machine_id);

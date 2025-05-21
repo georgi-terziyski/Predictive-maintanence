@@ -3,10 +3,11 @@ import requests
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
-import joblib
-import numpy as np
 import pandas as pd
 import json
+import tempfile
+import subprocess
+import re
 
 load_dotenv()
 
@@ -14,17 +15,10 @@ app = Flask(__name__)
 
 # Configuration
 DATA_AGENT_URL = os.getenv('DATA_AGENT_URL', 'http://localhost:5001')
-MODEL_PATH = os.getenv('MODEL_PATH', 'agents/models/failure_prediction_model.pkl')
+EQUIPMENT_FILE = os.getenv('EQUIPMENT_FILE', 'inference/data/10apr/equipment_usage.csv')
+FAILURE_FILE = os.getenv('FAILURE_FILE', 'inference/data/10apr/failure_logs.csv')
+MAINTENANCE_FILE = os.getenv('MAINTENANCE_FILE', 'inference/data/10apr/maintenance_history.csv')
 PREDICTION_HORIZON_DAYS = int(os.getenv('PREDICTION_HORIZON_DAYS', 30))
-
-# Load ML model (placeholder - replace with actual model loading)
-try:
-    MODEL = joblib.load(MODEL_PATH)
-    MODEL_LOADED = True
-except Exception as e:
-    print(f"Error loading model: {str(e)}")
-    MODEL = None
-    MODEL_LOADED = False
 
 @app.route('/health')
 def health_check():
@@ -36,19 +30,16 @@ def health_check():
             data_agent_status = response.json().get('status', 'unknown')
     except:
         pass
-        
-    model_status = 'loaded' if MODEL_LOADED else 'unavailable'
     
     return jsonify({
         'status': 'running',
         'timestamp': datetime.now().isoformat(),
-        'model': model_status,
         'data_agent': data_agent_status,
         'version': '1.0'
     })
 
 def fetch_machine_data(machine_id):
-    """Fetch sensor data for the specified machine from the data agent"""
+    """Fetch prediction data for the specified machine from the data agent"""
     try:
         response = requests.get(
             f"{DATA_AGENT_URL}/predict?machine_id={machine_id}",
@@ -63,69 +54,46 @@ def fetch_machine_data(machine_id):
     except Exception as e:
         return None, f"Error fetching data from data agent: {str(e)}"
 
-def prepare_features(sensor_data):
-    """
-    Process raw sensor data into features for the ML model
-    This is where we would do feature engineering based on the 4 days of data
-    """
-    # Convert to DataFrame for easier manipulation
-    df = pd.DataFrame(sensor_data)
+def convert_to_inference_format(prediction_data, machine_id):
+    """Convert API prediction data to format expected by inference.py"""
+    # Create a DataFrame from the prediction readings
+    df = pd.DataFrame(prediction_data)
     
-    # Example feature engineering (would be customized based on your model):
-    features = {
-        # Recent averages
-        'avg_temperature': df['temperature'].mean(),
-        'avg_vibration': df['vibration'].mean(),
-        'avg_pressure': df['pressure'].mean(),
-        'avg_current': df['current'].mean(),
-        'avg_rpm': df['rpm'].mean(),
-        'avg_afr': df['afr'].mean(),
-        
-        # Recent standard deviations (variability)
-        'std_temperature': df['temperature'].std(),
-        'std_vibration': df['vibration'].std(),
-        'std_pressure': df['pressure'].std(),
-        
-        # Trends (linear regression slopes would be better)
-        'temp_trend': df['temperature'].iloc[-1] - df['temperature'].iloc[0],
-        'vibration_trend': df['vibration'].iloc[-1] - df['vibration'].iloc[0],
-        
-        # Min/Max values
-        'max_vibration': df['vibration'].max(),
-        'max_temperature': df['temperature'].max(),
-        
-        # Count of outlier readings (e.g., vibration > 6.0)
-        'high_vibration_count': len(df[df['vibration'] > 6.0]),
-    }
+    # Ensure column names match what inference.py expects
+    df.rename(columns={
+        'timestamp': 'Timestamp',
+        'temperature': 'Temperature',
+        'vibration': 'Vibration',
+        'pressure': 'Pressure',
+        'current': 'Current',
+        'rpm': 'RPM'
+    }, inplace=True, errors='ignore')
     
-    # Convert to numpy array for model input (order must match model training)
-    feature_names = [
-        'avg_temperature', 'avg_vibration', 'avg_pressure', 'avg_current', 
-        'avg_rpm', 'avg_afr', 'std_temperature', 'std_vibration', 'std_pressure',
-        'temp_trend', 'vibration_trend', 'max_vibration', 'max_temperature',
-        'high_vibration_count'
-    ]
+    # Add machine ID column
+    df['Machine_ID'] = machine_id
     
-    return np.array([features[name] for name in feature_names]).reshape(1, -1)
+    # Ensure timestamp is datetime
+    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+    
+    # Write to temporary CSV file
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as temp_file:
+        df.to_csv(temp_file.name, index=False)
+        return temp_file.name
 
-def store_prediction(machine_id, days_to_failure, confidence, contributing_factors):
+def store_prediction(machine_id, result):
     """Store prediction results back to the database via data agent"""
     try:
-        # Calculate predicted failure date
-        predicted_failure_date = (datetime.now() + timedelta(days=days_to_failure)).isoformat()
-        
-        # Prepare prediction details
+        # Extract relevant information from the inference result as per DB schema requirements
+        # Send the result object directly as prediction_details - data_agent will handle JSON conversion
         prediction_data = {
             'machine_id': machine_id,
-            'predicted_failure_date': predicted_failure_date,
-            'confidence': confidence,
-            'model_version': '1.0.0',
-            'prediction_details': json.dumps({
-                'days_to_failure': days_to_failure,
-                'contributing_factors': contributing_factors,
-                'prediction_date': datetime.now().isoformat()
-            })
+            'status': result['status'],
+            'failure_probability': result['stage1_probability'],
+            'prediction_timestamp': result['timestamp'],
+            'prediction_details': result  # Send the entire result object, not as a string
         }
+        
+        print(f"Storing prediction for machine {machine_id} with status {result['status']}")
         
         # Send to data agent
         response = requests.post(
@@ -144,62 +112,113 @@ def store_prediction(machine_id, days_to_failure, confidence, contributing_facto
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if not MODEL_LOADED:
-        return jsonify({'error': 'Prediction model not loaded'}), 503
-
     try:
         data = request.json
         
-        # Now we just need the machine_id
+        # Check for required field
         if 'machine_id' not in data:
             return jsonify({'error': 'Missing machine_id field'}), 400
             
         machine_id = data['machine_id']
         
-        # Fetch machine data from data agent
-        machine_data, error = fetch_machine_data(machine_id)
-        if error:
-            return jsonify({'error': error}), 500
+        # Check if this is a simulation request
+        is_simulation = 'simulation_data' in data or data.get('simulation_mode', False)
+        
+        if is_simulation:
+            # Use the provided simulation data directly
+            print(f"Using simulation data for machine ID: {machine_id}")
+            prediction_readings = data['simulation_data']
+        else:
+            # Fetch machine data from data agent
+            machine_data, error = fetch_machine_data(machine_id)
+            if error:
+                return jsonify({'error': error}), 500
+                
+            # Process prediction data
+            prediction_readings = machine_data.get('prediction_data', [])
+            if not prediction_readings:
+                print(f"No prediction data available for machine ID: {machine_id}, Response: {machine_data}")
+                return jsonify({'error': f'No prediction data available for machine ID: {machine_id}. Try one of these IDs: M001 through M010'}), 404
+        
+        # Convert to CSV for inference.py
+        temp_csv_path = convert_to_inference_format(prediction_readings, machine_id)
+        
+        # Current timestamp
+        current_timestamp = datetime.now().isoformat()
+        
+        # Execute inference.py as a subprocess
+        process = subprocess.Popen([
+            'python', 'inference/inference.py',
+            '--current_timestamp', current_timestamp,
+            '--input_data', temp_csv_path,
+            '--machine_id', machine_id,
+            #'--equipment_file', EQUIPMENT_FILE,
+            #'--failure_file', FAILURE_FILE,
+            #'--maintenance_file', MAINTENANCE_FILE
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        stdout, stderr = process.communicate()
+        
+        # Clean up temp file
+        try:
+            os.unlink(temp_csv_path)
+        except:
+            pass
+        
+        if process.returncode != 0:
+            return jsonify({'error': f'Inference process failed: {stderr}'}), 500
+        
+        # Extract JSON from stdout (inference.py prints JSON to stdout)
+        json_match = re.search(r'--- Inference Results \(JSON\) ---\n(.*?)\n--- Inference Script Finished', 
+                              stdout, re.DOTALL)
+        
+        if not json_match:
+            return jsonify({'error': 'Could not parse inference results'}), 500
             
-        # Process sensor data into features
-        sensor_readings = machine_data.get('sensor_data', [])
-        if not sensor_readings:
-            return jsonify({'error': 'No sensor data available for this machine'}), 404
-            
-        # Prepare features for the model
-        features = prepare_features(sensor_readings)
+        result = json.loads(json_match.group(1))
         
-        # Make prediction
-        # For this example, we'll assume the model predicts days until failure
-        days_to_failure = max(0, float(MODEL.predict(features)[0]))
+        # Store prediction only if it's not a simulation
+        result_data = result[0]  # First item in the list
+        success = False
+        result_id = None
         
-        # Calculate confidence (this would normally come from the model)
-        confidence = 0.85  # Placeholder
+        if not is_simulation:
+            # Only store the prediction if it's not from a simulation
+            success, result_id = store_prediction(machine_id, result_data)
+            if not success:
+                print(f"Warning: Failed to store prediction: {result_id}")
+        else:
+            print(f"Skipping database storage for simulation prediction")
         
-        # Identify contributing factors (this could be from feature importance)
-        contributing_factors = ["high vibration", "temperature fluctuation"]
-        
-        # Store prediction in database
-        success, result = store_prediction(
-            machine_id, 
-            days_to_failure, 
-            confidence, 
-            contributing_factors
-        )
-        
-        if not success:
-            print(f"Warning: Failed to store prediction: {result}")
-        
-        # Return prediction to caller
-        return jsonify({
+        # Enhanced response with additional details
+        response_data = {
             'machine_id': machine_id,
-            'predicted_failure_date': (datetime.now() + timedelta(days=days_to_failure)).isoformat(),
-            'days_to_failure': days_to_failure,
-            'confidence': confidence,
-            'contributing_factors': contributing_factors,
-            'prediction_id': result if success and isinstance(result, int) else None,
-            'timestamp': datetime.now().isoformat()
-        })
+            'status': result_data['status'],
+            'failure_probability': result_data['stage1_probability'],
+            'timestamp': result_data['timestamp'],
+            'failure_predictions': result_data['failure_predictions'],
+            'prediction_id': result_id if success and isinstance(result_id, int) else None
+        }
+        
+        # Add days to failure calculation based on recommendations
+        if result_data['status'] == 'alert' and result_data['failure_predictions']:
+            # Find the highest probability failure
+            highest_prob_failure = max(
+                result_data['failure_predictions'], 
+                key=lambda x: x['detection']['probability']
+            )
+            
+            # Extract action recommendation timeframe if available
+            if highest_prob_failure['action_recommendation']['recommended_before']:
+                rec_time = datetime.fromisoformat(highest_prob_failure['action_recommendation']['recommended_before'])
+                current = datetime.fromisoformat(result_data['timestamp'])
+                days_diff = (rec_time - current).days
+                response_data['days_to_failure'] = max(0, days_diff)
+                response_data['recommended_action'] = highest_prob_failure['action_recommendation']['action']
+                response_data['urgency'] = highest_prob_failure['action_recommendation']['urgency']
+        
+        # Return the enhanced response
+        return jsonify(response_data)
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
