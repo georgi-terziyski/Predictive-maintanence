@@ -224,4 +224,4 @@ def predict():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=int(os.getenv('PREDICTION_AGENT_PORT', 5002)))
+    app.run(host=os.getenv('FLASK_HOST'), port=int(os.getenv('PREDICTION_AGENT_PORT', 5002)))

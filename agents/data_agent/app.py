@@ -551,4 +551,4 @@ def get_machine_list():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(port=int(os.getenv('DATA_AGENT_PORT', 5001)))
+    app.run(host=os.getenv('FLASK_HOST'), port=int(os.getenv('DATA_AGENT_PORT', 5001)))
