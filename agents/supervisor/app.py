@@ -60,11 +60,26 @@ def health_check():
 @app.route('/predict', methods=['POST'])
 def handle_prediction():
     try:
+        # Extract machine_id from request data
+        request_data = request.json or {}
+        machine_id = request_data.get('machine_id')
+        
+        if not machine_id:
+            return jsonify({'error': 'machine_id is required'}), 400
+            
+        # Create JSON payload with machine_id
+        payload = {'machine_id': machine_id}
+        
+        # If there's other data in the request, include it in the payload
+        for key, value in request_data.items():
+            if key != 'machine_id':
+                payload[key] = value
+        
         # Forward request to prediction agent
         prediction_agent = REGISTERED_AGENTS['prediction_agent']
         response = requests.post(
             f"{prediction_agent['base_url']}{prediction_agent['endpoints']['predict']}",
-            json=request.json,
+            json=payload,
             timeout=5
         )
         return jsonify(response.json()), response.status_code
