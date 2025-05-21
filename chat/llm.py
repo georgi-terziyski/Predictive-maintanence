@@ -106,7 +106,7 @@ def chat():
         response = requests.post(
             f"{SUPERVISOR_API_URL}/predict",
             headers={"Content-Type": "application/json"},
-            json={machine_id:machine_id}
+            json={"machine_id":machine_id}
         )
         return jsonify(response.json()), response.status_code
     
