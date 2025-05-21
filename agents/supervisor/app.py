@@ -16,7 +16,8 @@ REGISTERED_AGENTS = {
             'health': '/health',
             'fetch_data': '/fetch',
             'machine_list': '/machine_list',
-            'defaults': '/defaults'
+            'defaults': '/defaults',
+            'live_data': '/live_data'
         }
     },
     'prediction_agent': {
@@ -110,6 +111,29 @@ def handle_machine_defaults():
         response = requests.get(
             f"{data_agent['base_url']}{data_agent['endpoints']['defaults']}",
             params={'machine_id': machine_id},
+            timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/live_data', methods=['GET'])
+def handle_live_data():
+    try:
+        # Get machine_id from request if provided
+        machine_id = request.args.get('machine_id')
+        
+        # Forward request to data agent
+        data_agent = REGISTERED_AGENTS['data_agent']
+        
+        # Pass along query parameters if they exist
+        params = {}
+        if machine_id:
+            params['machine_id'] = machine_id
+            
+        response = requests.get(
+            f"{data_agent['base_url']}{data_agent['endpoints']['live_data']}",
+            params=params,
             timeout=5
         )
         return jsonify(response.json()), response.status_code
