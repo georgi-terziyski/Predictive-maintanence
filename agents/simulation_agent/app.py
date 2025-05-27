@@ -247,7 +247,7 @@ def run_simulation():
         params = request.get_json() or {}
         
         # Check required parameters
-        machine_id = params.get('machine_id')
+        machine_id = params.json.get("machine_id", "") or params.get("machine_id", "")
         if not machine_id:
             return jsonify({'error': 'machine_id is required'}), 400
         

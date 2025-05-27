@@ -92,7 +92,7 @@ def handle_simulation():
         # Get and validate parameters
         params = request.get_json() or {}
         # Check required parameters
-        machine_id = params.get('machine_id')
+        machine_id = params.json.get("machine_id", "") or params.get("machine_id", "")
         if not machine_id:
             return params, 400
         # Forward request to simulation agent
