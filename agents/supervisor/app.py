@@ -89,15 +89,33 @@ def handle_prediction():
 @app.route('/simulate', methods=['POST'])
 def handle_simulation():
     try:
-        # Check required parameters
-        machine_id = request.json.get("machine_id", "") or request.json.get("simulation_data", {}).get("machine_id", "")
+        request_data = request.json or {}
+        
+        # Check required parameters - look for machine_id at top level or nested in simulation_data
+        machine_id = request_data.get("machine_id", "") or request_data.get("simulation_data", {}).get("machine_id", "")
         if not machine_id:
-            return params, 400
+            return jsonify({'error': 'machine_id is required'}), 400
+        
+        # If data is nested in simulation_data, flatten it for the simulation agent
+        if "simulation_data" in request_data:
+            simulation_data = request_data["simulation_data"]
+            # Create flattened payload with machine_id at top level
+            payload = {
+                "machine_id": machine_id,
+                "duration_hours": simulation_data.get("duration_hours", 24),
+                "initial_values": simulation_data.get("initial_values", {}),
+                "fixed_parameters": simulation_data.get("fixed_parameters", {}),
+                "interval_minutes": simulation_data.get("interval_minutes", 30)
+            }
+        else:
+            # Data is already flat, use as-is
+            payload = request_data
+            
         # Forward request to simulation agent
         simulation_agent = REGISTERED_AGENTS['simulation_agent']
         response = requests.post(
             f"{simulation_agent['base_url']}{simulation_agent['endpoints']['simulate']}",
-            json=request.json,
+            json=payload,
             timeout=5
         )
         return jsonify(response.json()), response.status_code
