@@ -89,10 +89,8 @@ def handle_prediction():
 @app.route('/simulate', methods=['POST'])
 def handle_simulation():
     try:
-        # Get and validate parameters
-        params = request.get_json() or {}
         # Check required parameters
-        machine_id = params.json.get("machine_id", "") or params.get("machine_id", "")
+        machine_id = request.json.get("machine_id", "") or request.json.get("simulation_data", {}).get("machine_id", "")
         if not machine_id:
             return params, 400
         # Forward request to simulation agent
