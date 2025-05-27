@@ -94,7 +94,7 @@ def handle_simulation():
         # Check required parameters
         machine_id = params.get('machine_id')
         if not machine_id:
-            return jsonify({'error': 'machine_id is required -- from supervisor'}), 400
+            return params, 400
         # Forward request to simulation agent
         simulation_agent = REGISTERED_AGENTS['simulation_agent']
         response = requests.post(
