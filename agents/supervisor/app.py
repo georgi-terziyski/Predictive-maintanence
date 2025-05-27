@@ -89,6 +89,12 @@ def handle_prediction():
 @app.route('/simulate', methods=['POST'])
 def handle_simulation():
     try:
+        # Get and validate parameters
+        params = request.get_json() or {}
+        # Check required parameters
+        machine_id = params.get('machine_id')
+        if not machine_id:
+            return jsonify({'error': 'machine_id is required -- from supervisor'}), 400
         # Forward request to simulation agent
         simulation_agent = REGISTERED_AGENTS['simulation_agent']
         response = requests.post(

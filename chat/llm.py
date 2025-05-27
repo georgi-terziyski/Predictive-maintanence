@@ -113,6 +113,9 @@ def chat():
     # Simulation request
     if "__simulation_run" in user_message:
         simulation_data = request.json.get("simulation_data")
+        machine_id = simulation_data.get("machine_id")
+        if not machine_id:
+            return jsonify({"error": "machine_id is required for simulation -- from llm"}), 400
         payload = {"simulation_data": simulation_data} if simulation_data else {}
         response = requests.post(f"{SUPERVISOR_API_URL}/simulate", json=payload)
         return jsonify(response.json()), response.status_code
