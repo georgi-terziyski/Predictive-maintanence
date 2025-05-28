@@ -150,16 +150,26 @@ def handle_project_list():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/projects', methods=['POST'])
-def handle_create_project():
+@app.route('/projects', methods=['POST', 'DELETE'])
+def handle_projects():
     try:
         # Forward request to data agent
         data_agent = REGISTERED_AGENTS['data_agent']
-        response = requests.post(
-            f"{data_agent['base_url']}{data_agent['endpoints']['projects']}",
-            json=request.json,
-            timeout=5
-        )
+        
+        if request.method == 'POST':
+            response = requests.post(
+                f"{data_agent['base_url']}{data_agent['endpoints']['projects']}",
+                json=request.json,
+                timeout=5
+            )
+        elif request.method == 'DELETE':
+            # Forward query parameters for DELETE requests
+            response = requests.delete(
+                f"{data_agent['base_url']}{data_agent['endpoints']['projects']}",
+                params=request.args,
+                timeout=5
+            )
+        
         return jsonify(response.json()), response.status_code
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -567,7 +567,14 @@ def get_project_list():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/projects', methods=['POST'])
+@app.route('/projects', methods=['POST', 'DELETE'])
+def handle_projects():
+    """Handle project operations - POST to add, DELETE to remove"""
+    if request.method == 'POST':
+        return add_project()
+    elif request.method == 'DELETE':
+        return delete_project()
+
 def add_project():
     """Add a new project"""
     try:
@@ -597,6 +604,39 @@ def add_project():
         conn.close()
         
         return jsonify({'id': new_id, 'status': 'created'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def delete_project():
+    """Delete a project by name"""
+    try:
+        # Get project name from query parameters
+        project_name = request.args.get('name')
+        if not project_name:
+            return jsonify({'error': 'Missing required parameter: name'}), 400
+            
+        if not project_name.strip():
+            return jsonify({'error': 'project name cannot be empty'}), 400
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # First check if project exists
+        cur.execute('SELECT id FROM projects WHERE "project name" = %s', (project_name.strip(),))
+        existing_project = cur.fetchone()
+        
+        if not existing_project:
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Project not found'}), 404
+        
+        # Delete the project
+        cur.execute('DELETE FROM projects WHERE "project name" = %s', (project_name.strip(),))
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'status': 'deleted', 'project_name': project_name.strip()}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
