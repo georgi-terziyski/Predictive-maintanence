@@ -550,5 +550,55 @@ def get_machine_list():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/project_list', methods=['GET'])
+def get_project_list():
+    """Get a simplified list of project IDs and names only"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute('SELECT id, "project name" FROM projects ORDER BY id;')
+        projects = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        # Convert to list of dictionaries
+        result = [dict(row) for row in projects]
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/projects', methods=['POST'])
+def add_project():
+    """Add a new project"""
+    try:
+        data = request.get_json()
+        
+        # Validate required field
+        if not data or 'project name' not in data:
+            return jsonify({'error': 'Missing required field: project name'}), 400
+            
+        project_name = data['project name']
+        if not project_name or not project_name.strip():
+            return jsonify({'error': 'project name cannot be empty'}), 400
+        
+        # Create the INSERT statement
+        sql = '''
+            INSERT INTO projects ("project name")
+            VALUES (%s)
+            RETURNING id
+        '''
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(sql, (project_name.strip(),))
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'id': new_id, 'status': 'created'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host=os.getenv('FLASK_HOST'), port=int(os.getenv('DATA_AGENT_PORT', 5001)))
