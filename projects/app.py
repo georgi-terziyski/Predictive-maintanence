@@ -4,6 +4,16 @@ import subprocess
 import glob
 import shutil
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+PROJECT_NAME= os.getenv('PROJECT_NAME')
+FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, PROJECT_NAME, 'projects', 'final_models')
+INFERENCE_DIR = os.path.join(PROJECT_ROOT, PROJECT_NAME, 'inference')
+HISTORY_DIR = os.path.join(INFERENCE_DIR, 'history')
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'projects/uploads'
@@ -167,12 +177,6 @@ def move_models():
         'files': moved_files
     }), 200
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-
-PROJECT_NAME= 'Predictive-maintanence'
-FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, PROJECT_NAME, 'projects', 'final_models')
-INFERENCE_DIR = os.path.join(PROJECT_ROOT, PROJECT_NAME, 'inference')
-HISTORY_DIR = os.path.join(INFERENCE_DIR, 'history')
 
 FILES_TO_PROCESS = [
     'feature_columns_xgb_s1.joblib',
