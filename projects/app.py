@@ -169,8 +169,9 @@ def move_models():
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
-FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, 'Predictive-maintanence', 'projects', 'final_models')
-INFERENCE_DIR = os.path.join(PROJECT_ROOT, 'Predictive-maintanence', 'inference')
+PROJECT_NAME= 'Predictive-maintanence'
+FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, PROJECT_NAME, 'projects', 'final_models')
+INFERENCE_DIR = os.path.join(PROJECT_ROOT, PROJECT_NAME, 'inference')
 HISTORY_DIR = os.path.join(INFERENCE_DIR, 'history')
 
 FILES_TO_PROCESS = [
