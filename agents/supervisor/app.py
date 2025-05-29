@@ -16,6 +16,8 @@ REGISTERED_AGENTS = {
             'health': '/health',
             'fetch_data': '/fetch',
             'machine_list': '/machine_list',
+            'project_list': '/project_list',
+            'projects': '/projects',
             'defaults': '/defaults',
             'live_data': '/live_data'
         }
@@ -131,6 +133,43 @@ def handle_machine_list():
             f"{data_agent['base_url']}{data_agent['endpoints']['machine_list']}",
             timeout=5
         )
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/project_list', methods=['GET'])
+def handle_project_list():
+    try:
+        # Forward request to data agent
+        data_agent = REGISTERED_AGENTS['data_agent']
+        response = requests.get(
+            f"{data_agent['base_url']}{data_agent['endpoints']['project_list']}",
+            timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/projects', methods=['POST', 'DELETE'])
+def handle_projects():
+    try:
+        # Forward request to data agent
+        data_agent = REGISTERED_AGENTS['data_agent']
+        
+        if request.method == 'POST':
+            response = requests.post(
+                f"{data_agent['base_url']}{data_agent['endpoints']['projects']}",
+                json=request.json,
+                timeout=5
+            )
+        elif request.method == 'DELETE':
+            # Forward query parameters for DELETE requests
+            response = requests.delete(
+                f"{data_agent['base_url']}{data_agent['endpoints']['projects']}",
+                params=request.args,
+                timeout=5
+            )
+        
         return jsonify(response.json()), response.status_code
     except Exception as e:
         return jsonify({'error': str(e)}), 500
