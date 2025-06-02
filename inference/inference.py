@@ -43,16 +43,16 @@ def load_artifacts():
 # --- Load all input data ---
 def load_raw_data(sensor_file, equipment_file, failure_file, maint_file):
     sensor    = pd.read_csv(sensor_file)
-    sensor['Timestamp'] = pd.to_datetime(sensor['Timestamp'], format='mixed', errors='coerce')
+    sensor['Timestamp'] = pd.to_datetime(sensor['Timestamp'], format='mixed', errors='coerce').dt.tz_localize(None)
     equipment = pd.read_csv(equipment_file)
     if os.path.exists(failure_file):
         failures = pd.read_csv(failure_file)
-        failures['Timestamp'] = pd.to_datetime(failures['Timestamp'], format='mixed', errors='coerce')
+        failures['Timestamp'] = pd.to_datetime(failures['Timestamp'], format='mixed', errors='coerce').dt.tz_localize(None)
     else:
         failures = pd.DataFrame(columns=['Machine_ID', 'Timestamp', 'Failure_Type'])
     if os.path.exists(maint_file):
         maint = pd.read_csv(maint_file)
-        maint['Timestamp'] = pd.to_datetime(maint['Timestamp'], format='mixed', errors='coerce')
+        maint['Timestamp'] = pd.to_datetime(maint['Timestamp'], format='mixed', errors='coerce').dt.tz_localize(None)
     else:
         maint = pd.DataFrame(columns=['Machine_ID', 'Timestamp', 'Maintenance_Action'])
     return sensor, equipment, failures, maint
@@ -63,7 +63,7 @@ def prepare_features(df_sensor, df_equipment, hours_back, target_ts, window_size
     df_hist     = df_sensor[df_sensor['Timestamp'] <= target_ts]
     df_hist     = df_hist[df_hist['Timestamp'] >= time_cutoff]
     merged      = pd.merge(df_hist, df_equipment, on='Machine_ID', how='left')
-    merged['Timestamp'] = pd.to_datetime(merged['Timestamp'], format='mixed', errors='coerce')
+    merged['Timestamp'] = pd.to_datetime(merged['Timestamp'], format='mixed', errors='coerce').dt.tz_localize(None)
     merged      = merged.set_index('Timestamp').sort_index()
     feats       = create_features(merged.copy(), window_size_hrs=window_size)
     feats       = feats[feats.index <= target_ts]

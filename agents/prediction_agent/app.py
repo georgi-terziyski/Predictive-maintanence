@@ -73,7 +73,7 @@ def convert_to_inference_format(prediction_data, machine_id):
     df['Machine_ID'] = machine_id
     
     # Ensure timestamp is datetime
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='mixed', errors='coerce')
+    df['Timestamp'] = pd.to_datetime(df['Timestamp'], format='mixed', errors='coerce').dt.tz_localize(None)
     
     # Write to temporary CSV file
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv') as temp_file:
