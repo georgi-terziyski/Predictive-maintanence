@@ -216,5 +216,44 @@ def handle_live_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/latest_prediction', methods=['GET'])
+def handle_latest_prediction():
+    try:
+        # Get machine_id from request
+        machine_id = request.args.get('machine_id')
+        if not machine_id:
+            return jsonify({'error': 'machine_id parameter is required'}), 400
+            
+        # Forward request to data agent to get the latest prediction (limit=1)
+        data_agent = REGISTERED_AGENTS['data_agent']
+        response = requests.get(
+            f"{data_agent['base_url']}/predictions",
+            params={'machine_id': machine_id, 'limit': 1},
+            timeout=5
+        )
+        
+        if response.status_code != 200:
+            return jsonify(response.json()), response.status_code
+            
+        predictions = response.json()
+        
+        # Format response with the single latest prediction
+        if predictions and len(predictions) > 0:
+            latest_prediction = predictions[0]
+            result = {
+                'machine_id': machine_id,
+                'latest_prediction': latest_prediction
+            }
+        else:
+            result = {
+                'machine_id': machine_id,
+                'latest_prediction': None,
+                'message': 'No predictions found for this machine'
+            }
+            
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host=os.getenv('FLASK_HOST'),port=int(os.getenv('SUPERVISOR_PORT')))
