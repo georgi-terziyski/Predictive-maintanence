@@ -175,8 +175,8 @@ def get_failure_data():
         conn.close()
         
         result = [dict(row) for row in failure_data]
-        if not result:
-            return jsonify({'message': f'No failure data found for machine_id: {machine_id}', 'data': []}), 200
+#        if not result:
+#            return jsonify({'message': f'No failure data found for machine_id: {machine_id}', 'data': []}), 200
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -205,8 +205,8 @@ def get_maintenance_history():
         conn.close()
         
         result = [dict(row) for row in maintenance_data]
-        if not result:
-            return jsonify({'message': f'No maintenance history found for machine_id: {machine_id}', 'data': []}), 200
+#        if not result:
+#            return jsonify({'message': f'No maintenance history found for machine_id: {machine_id}', 'data': []}), 200
         return jsonify(result)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
