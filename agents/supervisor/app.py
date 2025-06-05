@@ -19,7 +19,9 @@ REGISTERED_AGENTS = {
             'project_list': '/project_list',
             'projects': '/projects',
             'defaults': '/defaults',
-            'live_data': '/live_data'
+            'live_data': '/live_data',
+            'failure_data': '/failure_data',
+            'maintenance_history': '/maintenance_history'
         }
     },
     'prediction_agent': {
@@ -252,6 +254,40 @@ def handle_latest_prediction():
             }
             
         return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/machine_failure_data', methods=['GET'])
+def handle_machine_failure_data():
+    try:
+        machine_id = request.args.get('machine_id')
+        if not machine_id:
+            return jsonify({'error': 'machine_id parameter is required'}), 400
+            
+        data_agent = REGISTERED_AGENTS['data_agent']
+        response = requests.get(
+            f"{data_agent['base_url']}{data_agent['endpoints']['failure_data']}",
+            params={'machine_id': machine_id},
+            timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/machine_maintenance_history', methods=['GET'])
+def handle_machine_maintenance_history():
+    try:
+        machine_id = request.args.get('machine_id')
+        if not machine_id:
+            return jsonify({'error': 'machine_id parameter is required'}), 400
+            
+        data_agent = REGISTERED_AGENTS['data_agent']
+        response = requests.get(
+            f"{data_agent['base_url']}{data_agent['endpoints']['maintenance_history']}",
+            params={'machine_id': machine_id},
+            timeout=5
+        )
+        return jsonify(response.json()), response.status_code
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

@@ -151,6 +151,66 @@ def get_live_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/failure_data', methods=['GET'])
+def get_failure_data():
+    """Get all failure log data for a given machine."""
+    try:
+        machine_id = request.args.get('machine_id')
+        if not machine_id:
+            return jsonify({'error': 'machine_id parameter is required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Query the failure_logs table, order by timestamp
+        query = '''
+            SELECT * FROM failure_logs
+            WHERE machine_id = %s
+            ORDER BY "timestamp" DESC; 
+        '''
+        
+        cur.execute(query, (machine_id,))
+        failure_data = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        result = [dict(row) for row in failure_data]
+        if not result:
+            return jsonify({'message': f'No failure data found for machine_id: {machine_id}', 'data': []}), 200
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/maintenance_history', methods=['GET'])
+def get_maintenance_history():
+    """Get all maintenance history for a given machine."""
+    try:
+        machine_id = request.args.get('machine_id')
+        if not machine_id:
+            return jsonify({'error': 'machine_id parameter is required'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        
+        # Query the maintenance_history table, order by timestamp
+        query = '''
+            SELECT * FROM maintenance_history
+            WHERE machine_id = %s
+            ORDER BY "timestamp" DESC;
+        '''
+        
+        cur.execute(query, (machine_id,))
+        maintenance_data = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        result = [dict(row) for row in maintenance_data]
+        if not result:
+            return jsonify({'message': f'No maintenance history found for machine_id: {machine_id}', 'data': []}), 200
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/historical_data', methods=['GET'])
 def get_historical_data():
     """Get historical sensor data with optional filtering"""
