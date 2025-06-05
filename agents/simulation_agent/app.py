@@ -61,21 +61,43 @@ def generate_time_series(machine_id, initial_values=None, fixed_parameters=None,
     """
     Generate a realistic time series of sensor data based on initial values and fixed parameters.
     
+    Features:
+    - Minimum simulation duration of 168 hours
+    - Fixed parameters are applied only during the last 48 hours (failure period)
+    - A 24-hour transition period before failure where values gradually approach the failure values
+    - Normal random variations for all sensors outside their specific failure/transition periods
+    
     Args:
         machine_id: Machine identifier
         initial_values: Dictionary of initial sensor values
-        fixed_parameters: Dictionary of parameters to keep constant
-        duration_hours: Duration of simulation in hours
+        fixed_parameters: Dictionary of parameters to keep constant during failure period
+        duration_hours: Duration of simulation in hours (minimum 168)
         interval_minutes: Time interval between data points in minutes
     
     Returns:
         List of dictionaries containing the time series data
     """
+    # Constants
+    MIN_SIMULATION_DURATION_HOURS = 168
+    FAILURE_DURATION_HOURS = 48
+    TRANSITION_DURATION_HOURS = 24
+    
     if initial_values is None:
         initial_values = {}
     
     if fixed_parameters is None:
         fixed_parameters = {}
+    
+    # Ensure minimum simulation duration of 168 hours
+    if duration_hours < MIN_SIMULATION_DURATION_HOURS:
+        duration_hours = MIN_SIMULATION_DURATION_HOURS
+    
+    # Calculate time boundaries
+    time_available_before_failure_starts_hours = duration_hours - FAILURE_DURATION_HOURS
+    actual_transition_duration_hours = max(0, min(TRANSITION_DURATION_HOURS, time_available_before_failure_starts_hours))
+    
+    failure_start_offset_minutes = (duration_hours - FAILURE_DURATION_HOURS) * 60
+    transition_start_offset_minutes = failure_start_offset_minutes - (actual_transition_duration_hours * 60)
     
     # Calculate number of intervals
     intervals = int((duration_hours * 60) / interval_minutes)
@@ -92,14 +114,10 @@ def generate_time_series(machine_id, initial_values=None, fixed_parameters=None,
         else:
             current_values[sensor] = config['default']
     
-    # Override with fixed parameters if specified
-    for param, value in fixed_parameters.items():
-        if param in SENSOR_DEFAULTS:
-            current_values[param] = value
-    
     # Generate time series with realistic trends
     for i in range(intervals):
-        timestamp = start_time + timedelta(minutes=i*interval_minutes)
+        current_loop_time_minutes = i * interval_minutes
+        timestamp = start_time + timedelta(minutes=current_loop_time_minutes)
         
         # Create data point
         data_point = {
@@ -109,22 +127,42 @@ def generate_time_series(machine_id, initial_values=None, fixed_parameters=None,
         
         # Update sensor values with realistic variations
         for sensor, config in SENSOR_DEFAULTS.items():
-            if sensor in fixed_parameters:
-                # Use fixed value
-                data_point[sensor] = fixed_parameters[sensor]
-            else:
-                # Apply random variation
-                variation = config['variation']
-                new_value = current_values[sensor] + random.uniform(-variation, variation)
-                
-                # Update current value for next iteration (cumulative effect)
-                current_values[sensor] = new_value
-                
-                # Round appropriately and add to data point
-                if sensor == 'rpm':
-                    data_point[sensor] = int(new_value)
+            target_failure_value = fixed_parameters.get(sensor)
+            sensor_value_to_set = None
+            
+            if target_failure_value is not None:  # This sensor has a fixed failure value
+                if current_loop_time_minutes >= failure_start_offset_minutes:
+                    # In failure period - use the fixed value
+                    sensor_value_to_set = target_failure_value
+                elif actual_transition_duration_hours > 0 and current_loop_time_minutes >= transition_start_offset_minutes:
+                    # In transition period - gradually shift towards failure value
+                    elapsed_in_transition_minutes = current_loop_time_minutes - transition_start_offset_minutes
+                    total_transition_span_minutes = actual_transition_duration_hours * 60
+                    progress_ratio = 0.0
+                    if total_transition_span_minutes > 0:  # Avoid division by zero
+                        progress_ratio = elapsed_in_transition_minutes / total_transition_span_minutes
+                    progress_ratio = min(1.0, max(0.0, progress_ratio))  # Clamp between 0 and 1
+                    
+                    # Calculate normal variation that would have happened
+                    normal_varied_value = current_values[sensor] + random.uniform(-config['variation'], config['variation'])
+                    
+                    # Interpolate between normal value and target failure value
+                    sensor_value_to_set = normal_varied_value * (1 - progress_ratio) + target_failure_value * progress_ratio
                 else:
-                    data_point[sensor] = round(new_value, 2)
+                    # Before transition - normal random variation
+                    sensor_value_to_set = current_values[sensor] + random.uniform(-config['variation'], config['variation'])
+            else:
+                # Sensor not in fixed_parameters - always normal random variation
+                sensor_value_to_set = current_values[sensor] + random.uniform(-config['variation'], config['variation'])
+            
+            # Update current value for next iteration
+            current_values[sensor] = sensor_value_to_set
+            
+            # Round appropriately and add to data point
+            if sensor == 'rpm':
+                data_point[sensor] = int(sensor_value_to_set)
+            else:
+                data_point[sensor] = round(sensor_value_to_set, 2)
         
         time_series.append(data_point)
     
