@@ -21,3 +21,5 @@ chat/instructions_old/
 data/backup/*.csv
 #ignore prediction files
 inference/preds/
+
+logs/
