@@ -21,7 +21,8 @@ REGISTERED_AGENTS = {
             'defaults': '/defaults',
             'live_data': '/live_data',
             'failure_data': '/failure_data',
-            'maintenance_history': '/maintenance_history'
+            'maintenance_history': '/maintenance_history',
+            'maintenance_entry': '/maintenance_entry'
         }
     },
     'prediction_agent': {
@@ -285,6 +286,20 @@ def handle_machine_maintenance_history():
         response = requests.get(
             f"{data_agent['base_url']}{data_agent['endpoints']['maintenance_history']}",
             params={'machine_id': machine_id},
+            timeout=5
+        )
+        return jsonify(response.json()), response.status_code
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/maintenance_entry', methods=['POST'])
+def handle_maintenance_entry():
+    try:
+        # Forward request to data agent
+        data_agent = REGISTERED_AGENTS['data_agent']
+        response = requests.post(
+            f"{data_agent['base_url']}{data_agent['endpoints']['maintenance_entry']}",
+            json=request.json,
             timeout=5
         )
         return jsonify(response.json()), response.status_code

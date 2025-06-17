@@ -445,6 +445,52 @@ def add_maintenance():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/maintenance_entry', methods=['POST'])
+def add_maintenance_entry():
+    """Add maintenance record to both maintenance_history and maintenance tables"""
+    try:
+        data = request.get_json()
+        required_fields = ['machine_id', 'timestamp', 'maintenance_action']
+        
+        # Validate required fields
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Insert into maintenance_history table (exact column match)
+        history_sql = '''
+            INSERT INTO maintenance_history (machine_id, timestamp, maintenance_action)
+            VALUES (%s, %s, %s)
+        '''
+        cur.execute(history_sql, (data['machine_id'], data['timestamp'], data['maintenance_action']))
+        
+        # Insert into maintenance table
+        maintenance_sql = '''
+            INSERT INTO maintenance (machine_id, maintenance_date, maintenance_type, reason, work_performed, status)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+        '''
+        cur.execute(maintenance_sql, (
+            data['machine_id'],
+            data['timestamp'],  # maintenance_date = timestamp
+            'maintenance',  # default maintenance_type
+            'Maintenance performed',  # default reason
+            data['maintenance_action'],  # work_performed = maintenance_action
+            'completed'  # default status
+        ))
+        
+        new_id = cur.fetchone()[0]
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        return jsonify({'id': new_id, 'status': 'created', 'message': 'Added to both maintenance tables'}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/defaults', methods=['GET'])
 def get_defaults():
     """Get system defaults with optional category/machine filtering"""
