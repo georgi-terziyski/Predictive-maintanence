@@ -101,7 +101,9 @@ reboot_agent() {
 
 # Function to stop all agents
 stop_all_agents() {
-    # Stop in reverse order: synthetic_data -> supervisor -> simulation_agent -> prediction_agent -> data_agent
+    # Stop in reverse order: chat_agent -> synthetic_data -> supervisor -> simulation_agent -> prediction_agent -> data_agent
+    stop_agent "chat_agent"
+    sleep 1
     stop_agent "synthetic_data"
     sleep 1
     stop_agent "supervisor"
@@ -130,6 +132,8 @@ reboot_all_agents() {
     start_agent "supervisor" "agents/supervisor/app.py" $SUPERVISOR_PORT
     sleep 1
     start_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
+    sleep 1
+    start_agent "chat_agent" "chat/llm.py" $CHAT_AGENT_PORT
     echo -e "${GREEN}All agents rebooted.${NC}"
 }
 
@@ -165,6 +169,12 @@ display_status() {
         echo -e "${GREEN}Synthetic Data Generator: Running (PID: $(cat agents/pids/synthetic_data.pid), Port: $LIVEDATA_PORT)${NC}"
     else
         echo -e "${RED}Synthetic Data Generator: Not running${NC}"
+    fi
+    
+    if is_agent_running "chat_agent"; then
+        echo -e "${GREEN}Chat Agent: Running (PID: $(cat agents/pids/chat_agent.pid), Port: $CHAT_AGENT_PORT)${NC}"
+    else
+        echo -e "${RED}Chat Agent: Not running${NC}"
     fi
 }
 
@@ -210,9 +220,15 @@ process_choice() {
             reboot_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
             ;;
         13)
-            display_status
+            stop_agent "chat_agent"
             ;;
         14)
+            reboot_agent "chat_agent" "chat/llm.py" $CHAT_AGENT_PORT
+            ;;
+        15)
+            display_status
+            ;;
+        16)
             echo -e "${GREEN}Exiting.${NC}"
             exit 0
             ;;
@@ -256,9 +272,11 @@ while true; do
     echo "10. Reboot supervisor"
     echo "11. Stop synthetic data generator"
     echo "12. Reboot synthetic data generator"
-    echo "13. Display agent status"
-    echo "14. Exit"
-    read -p "Enter your choice (1-14): " choice
+    echo "13. Stop chat agent"
+    echo "14. Reboot chat agent"
+    echo "15. Display agent status"
+    echo "16. Exit"
+    read -p "Enter your choice (1-16): " choice
     
     case $choice in
         1)
@@ -298,9 +316,15 @@ while true; do
             reboot_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
             ;;
         13)
-            display_status
+            stop_agent "chat_agent"
             ;;
         14)
+            reboot_agent "chat_agent" "chat/llm.py" $CHAT_AGENT_PORT
+            ;;
+        15)
+            display_status
+            ;;
+        16)
             echo -e "${GREEN}Exiting.${NC}"
             exit 0
             ;;

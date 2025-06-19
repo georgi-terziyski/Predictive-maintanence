@@ -1,7 +1,7 @@
 # Makefile for Predictive Maintenance System
 # This file allows running the system scripts without execute permissions
 
-.PHONY: all setup run stop reboot status stop-reboot logs-all logs-data logs-prediction logs-simulation logs-supervisor logs-synthetic-data
+.PHONY: all setup run stop reboot status stop-reboot logs-all logs-data logs-prediction logs-simulation logs-supervisor logs-synthetic-data logs-chat
 
 # Default target - shows available commands
 all:
@@ -18,6 +18,7 @@ all:
 	@echo "  make logs-simulation - View simulation agent logs"
 	@echo "  make logs-supervisor - View supervisor logs"
 	@echo "  make logs-synthetic-data - View synthetic data generator logs"
+	@echo "  make logs-chat       - View chat agent logs"
 
 # Setup the system
 setup:
@@ -61,3 +62,6 @@ logs-supervisor:
 
 logs-synthetic-data:
 	@bash view_logs.sh synthetic_data
+
+logs-chat:
+	@bash view_logs.sh chat_agent

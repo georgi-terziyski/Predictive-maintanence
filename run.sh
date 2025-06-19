@@ -83,6 +83,9 @@ start_all_agents() {
     
     start_agent "synthetic_data" "synthetic_data_generator.py" $LIVEDATA_PORT
     sleep 2
+    
+    start_agent "chat_agent" "chat/llm.py" $CHAT_AGENT_PORT
+    sleep 2
 
     echo -e "${GREEN}All agents started. Use ./stop_reboot.sh to stop or reboot agents.${NC}"
 }
@@ -120,6 +123,12 @@ display_status() {
     else
         echo -e "${RED}Synthetic Data Generator: Not running${NC}"
     fi
+    
+    if is_agent_running "chat_agent"; then
+        echo -e "${GREEN}Chat Agent: Running (PID: $(cat agents/pids/chat_agent.pid), Port: $CHAT_AGENT_PORT)${NC}"
+    else
+        echo -e "${RED}Chat Agent: Not running${NC}"
+    fi
 }
 
 # Main menu loop - displays the menu repeatedly until user chooses to exit
@@ -133,9 +142,10 @@ display_menu_and_handle_choice() {
         echo "4. Run simulation agent only"
         echo "5. Run supervisor only"
         echo "6. Run synthetic data generator only"
-        echo "7. Display agent status"
-        echo "8. Exit to terminal"
-        read -p "Enter your choice (1-8): " choice
+        echo "7. Run chat agent only"
+        echo "8. Display agent status"
+        echo "9. Exit to terminal"
+        read -p "Enter your choice (1-9): " choice
         
         case $choice in
             1)
@@ -169,9 +179,14 @@ display_menu_and_handle_choice() {
                 display_status
                 ;;
             7)
+                start_agent "chat_agent" "chat/llm.py" $CHAT_AGENT_PORT
+                sleep 2 # Give time for the agent to start
                 display_status
                 ;;
             8)
+                display_status
+                ;;
+            9)
                 echo -e "${GREEN}Exiting. Agents will continue running in the background.${NC}"
                 echo -e "${YELLOW}You can use ./stop_reboot.sh to stop or reboot agents.${NC}"
                 exit 0

@@ -154,4 +154,4 @@ def upload_pdf():
     return jsonify({"error": "Unsupported file type"}), 400
 
 if __name__ == "__main__":
-    app.run(host=os.getenv('FLASK_HOST', '0.0.0.0'), port=5005, debug=True, use_reloader=False)
+    app.run(host=os.getenv('FLASK_HOST', '0.0.0.0'), port=int(os.getenv('CHAT_AGENT_PORT', 5005)), debug=True, use_reloader=False)
