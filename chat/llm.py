@@ -139,15 +139,13 @@ def upload_pdf():
         file_path = os.path.join(DATA_FOLDER, filename)
         file.save(file_path)
 
-        # Extract and chunk text
+        # Extract text from PDF
         text = extract_text_from_pdf(file_path)
-        chunks = [text[i:i+500] for i in range(0, len(text), 500)]
 
-        # Embed and store in Chroma
-        for i, chunk in enumerate(chunks):
-            embedding = embedder.encode(chunk).tolist()
-            doc_id = f"{filename}_{i}"
-            collection.add(documents=[chunk], embeddings=[embedding], ids=[doc_id])
+        # Embed and store the whole PDF as one document
+        embedding = embedder.encode(text).tolist()
+        doc_id = filename  # or f"{filename}_full"
+        collection.add(documents=[text], embeddings=[embedding], ids=[doc_id])
 
         return jsonify({"message": f"{filename} uploaded and indexed successfully."})
     
