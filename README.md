@@ -17,24 +17,43 @@ This project implements a multi-agent system that collects sensor data from indu
 
 ## System Architecture
 
-The system consists of several microservices (agents) that work together:
+The system consists of a React frontend and several backend microservices (agents) that work together:
 
 ```mermaid
 graph TD
-    A[Supervisor] --> B[Data Agent]
-    A --> C[Prediction Agent] 
-    A --> D[Simulation Agent]
-    B --> F[(Database)]
-    C --> G[ML Model]
+    UI[React Frontend<br/>Vite + TypeScript + Tailwind] --> NGINX[Nginx Reverse Proxy<br/>Port 80/443]
+    NGINX --> A[Supervisor Service<br/>Port 5000]
+    A --> B[Data Agent<br/>Port 5001]
+    A --> C[Prediction Agent<br/>Port 5002] 
+    A --> D[Simulation Agent<br/>Port 5003]
+    B --> F[(PostgreSQL Database)]
+    C --> G[XGBoost ML Model]
     D --> H[Scenario Engine]
-    I[Synthetic Data Generator] --> F
+    I[Synthetic Data Generator<br/>Port 5006] --> F
+    
+    style UI fill:#61DAFB
+    style NGINX fill:#009639
+    style F fill:#336791
+    style G fill:#FF6D00
 ```
 
-- **Supervisor Service** - Coordinates communication between agents (port 5000)
+### Backend Services
+- **Supervisor Service** - Coordinates communication between agents and serves API endpoints (port 5000)
 - **Data Agent** - Fetches live machine data from database (port 5001)
-- **Prediction Agent** - Runs ML predictions on incoming data (port 5002)
+- **Prediction Agent** - Runs XGBoost ML predictions on incoming sensor data (port 5002)
 - **Simulation Agent** - Performs what-if scenario modeling (port 5003)
-- **Synthetic Data Generator** - Creates realistic machine data with anomalies (port 5006)
+- **Synthetic Data Generator** - Creates realistic machine data with anomalies for testing (port 5006)
+
+### Frontend Stack
+- **React 18+** - User interface framework
+- **Vite** - Fast build tool and development server
+- **TypeScript** - Type-safe JavaScript development
+- **Tailwind CSS** - Utility-first CSS framework
+- **Node.js** - JavaScript runtime for development and build processes
+
+### Production Infrastructure
+- **Nginx** - Reverse proxy server for API routing and static file serving
+- **PostgreSQL** - Primary database for sensor data and predictions
 
 ## Prerequisites
 
@@ -42,13 +61,23 @@ graph TD
 
 - **Operating System**: Linux (preferred), macOS, or Windows with WSL
 - **Hardware**: 
-  - Minimum: 2GB RAM, 2 CPU cores, 10GB disk space
-  - Recommended: 4GB RAM, 4 CPU cores, 20GB disk space
+  - **Minimum**: 4GB RAM, 4 CPU cores, 15GB disk space
+  - **Recommended**: 8GB RAM, 6 CPU cores, 30GB disk space
+  - **Production**: 16GB RAM, 8 CPU cores, 50GB disk space
 - **Software**:
-  - Python 3.10.16 (higher versions might cause compatibility issues with some packages)
-  - PostgreSQL 13.0 or higher
-  - Git (for cloning the repository)
-- **Network**: All agents communicate over HTTP, so ports 5000-5006 should be available
+  - **Backend Requirements**:
+    - Python 3.10.16 (higher versions might cause compatibility issues with some packages)
+    - PostgreSQL 13.0 or higher
+    - Git (for cloning the repository)
+  - **Frontend Requirements** (for complete system deployment):
+    - Node.js 18.x or higher
+    - npm 8.x or yarn 1.22.x or higher
+    - Nginx 1.18 or higher (for production deployment)
+- **Network**: 
+  - Backend services use ports 5000-5006
+  - Frontend development server typically uses port 3000
+  - Production deployment uses ports 80/443 (HTTP/HTTPS)
+  - Ensure firewall allows communication between frontend and backend services
 
 ### PostgreSQL Setup
 
@@ -373,13 +402,40 @@ The prediction system uses a trained XGBoost model. To retrain or fine-tune:
    python inference/run_grid_search.py
    ```
 
+### Frontend Integration
+
+The React frontend (deployed separately) communicates with the backend services through the following:
+
+1. **API Integration**: Frontend makes HTTP requests to the Supervisor service at `http://localhost:5000` (development) or through Nginx reverse proxy (production)
+
+2. **CORS Configuration**: Backend services include Flask-CORS to enable cross-origin requests from the frontend
+
+3. **Environment Configuration**: Frontend should be configured with:
+   ```env
+   VITE_API_BASE_URL=http://localhost:5000  # Development
+   VITE_API_BASE_URL=https://yourdomain.com/api  # Production
+   ```
+
 ### Production Deployment Considerations
 
 For production deployment:
-- Use a process manager like Supervisor or PM2
-- Set up a reverse proxy (Nginx/Apache) for API endpoints
-- Configure proper database backups
-- Implement proper authentication for API endpoints
+- **Backend**: Use a process manager like Supervisor or PM2
+- **Frontend**: Build React app with `npm run build` and serve via Nginx
+- **Reverse Proxy**: Configure Nginx to proxy API requests to backend services:
+  ```nginx
+  location /api/ {
+      proxy_pass http://localhost:5000/;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+  }
+  
+  location / {
+      try_files $uri $uri/ /index.html;
+      root /var/www/predictive-maintenance;
+  }
+  ```
+- **Database**: Configure proper PostgreSQL backups and security
+- **Security**: Implement proper authentication for API endpoints and HTTPS
 
 #### Docker Deployment (Optional)
 
