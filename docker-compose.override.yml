@@ -1,0 +1,58 @@
+# Development overrides for docker-compose.yml
+# This file is automatically loaded by docker-compose and provides development-specific configurations
+
+version: '3.8'
+
+services:
+  # Data Agent - Development overrides
+  data-agent:
+    volumes:
+      # Mount source code for hot reload during development
+      - ./agents/data_agent:/app/agents/data_agent
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+
+  # Prediction Agent - Development overrides
+  prediction-agent:
+    volumes:
+      # Mount source code for hot reload during development
+      - ./agents/prediction_agent:/app/agents/prediction_agent
+      - ./inference:/app/inference
+      - ./training:/app/training
+      - ./logs:/app/logs
+      - ./data_validation_tool.py:/app/data_validation_tool.py
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+
+  # Simulation Agent - Development overrides
+  simulation-agent:
+    volumes:
+      # Mount source code for hot reload during development
+      - ./agents/simulation_agent:/app/agents/simulation_agent
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+
+  # Supervisor Agent - Development overrides
+  supervisor:
+    volumes:
+      # Mount source code for hot reload during development
+      - ./agents/supervisor:/app/agents/supervisor
+      - ./logs:/app/logs
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+
+  # PostgreSQL - Development overrides
+  postgres:
+    ports:
+      - "5432:5432"  # Expose database port for development tools
+    environment:
+      - POSTGRES_DB=predictive_maintenance
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres

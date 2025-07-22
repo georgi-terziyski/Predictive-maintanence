@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: predictive-maintenance-db
+    environment:
+      POSTGRES_DB: predictive_maintenance
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./data:/docker-entrypoint-initdb.d/data:ro
+    networks:
+      - predictive-maintenance-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d predictive_maintenance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Data Agent
+  data-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.data-agent
+    container_name: predictive-maintenance-data-agent
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - DATA_AGENT_PORT=5001
+      - DB_HOST=postgres
+      - DB_NAME=predictive_maintenance
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./data:/app/data:ro
+      - ./logs:/app/logs
+    networks:
+      - predictive-maintenance-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Prediction Agent
+  prediction-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.prediction-agent
+    container_name: predictive-maintenance-prediction-agent
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - PREDICTION_AGENT_PORT=5002
+      - DATA_AGENT_URL=http://data-agent:5001
+      - EQUIPMENT_FILE=inference/data/10apr/equipment_usage.csv
+      - FAILURE_FILE=inference/data/10apr/failure_logs.csv
+      - MAINTENANCE_FILE=inference/data/10apr/maintenance_history.csv
+      - PREDICTION_HORIZON_DAYS=30
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./inference:/app/inference:ro
+      - ./training:/app/training:ro
+      - ./logs:/app/logs
+      - ./data_validation_tool.py:/app/data_validation_tool.py:ro
+    networks:
+      - predictive-maintenance-network
+    depends_on:
+      data-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Simulation Agent
+  simulation-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.simulation-agent
+    container_name: predictive-maintenance-simulation-agent
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - SIMULATION_AGENT_PORT=5003
+      - DATA_AGENT_URL=http://data-agent:5001
+      - PREDICTION_AGENT_URL=http://prediction-agent:5002
+    ports:
+      - "5003:5003"
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - predictive-maintenance-network
+    depends_on:
+      prediction-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Supervisor Agent
+  supervisor:
+    build:
+      context: .
+      dockerfile: Dockerfile.supervisor
+    container_name: predictive-maintenance-supervisor
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - SUPERVISOR_PORT=5000
+      - DATA_AGENT_URL=http://data-agent:5001
+      - PREDICTION_AGENT_URL=http://prediction-agent:5002
+      - SIMULATION_AGENT_URL=http://simulation-agent:5003
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - predictive-maintenance-network
+    depends_on:
+      data-agent:
+        condition: service_healthy
+      prediction-agent:
+        condition: service_healthy
+      simulation-agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  predictive-maintenance-network:
+    driver: bridge

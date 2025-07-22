@@ -1,0 +1,114 @@
+# Production overrides for docker-compose.yml
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  # PostgreSQL - Production configuration
+  postgres:
+    restart: unless-stopped
+    environment:
+      # Use stronger credentials in production
+      - POSTGRES_DB=predictive_maintenance
+      - POSTGRES_USER=pm_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-change_this_password}
+    ports: []  # Don't expose database port in production
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  # Data Agent - Production configuration
+  data-agent:
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      - DB_HOST=postgres
+      - DB_NAME=predictive_maintenance
+      - DB_USER=pm_user
+      - DB_PASSWORD=${DB_PASSWORD:-change_this_password}
+    volumes:
+      - ./data:/app/data:ro
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Prediction Agent - Production configuration
+  prediction-agent:
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+    volumes:
+      - ./inference:/app/inference:ro
+      - ./training:/app/training:ro
+      - ./logs:/app/logs
+      - ./data_validation_tool.py:/app/data_validation_tool.py:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+  # Simulation Agent - Production configuration
+  simulation-agent:
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+    volumes:
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Supervisor Agent - Production configuration
+  supervisor:
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+    volumes:
+      - ./logs:/app/logs
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  predictive-maintenance-network:
+    driver: bridge
