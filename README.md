@@ -14,6 +14,8 @@ This project implements a multi-agent system that collects sensor data from indu
 - Historical data analysis
 - What-if scenario simulation
 - REST API for frontend integration
+- **🐳 Fully containerized with Docker** - Easy deployment and scaling
+- **🚀 One-command startup** - Get running in minutes
 
 ## System Architecture
 
@@ -24,13 +26,13 @@ graph TD
     UI[React Frontend<br/>Vite + TypeScript + Tailwind] --> NGINX[Nginx Reverse Proxy<br/>Port 80/443]
     NGINX --> A[Supervisor Service<br/>Port 5000]
     A --> B[Data Agent<br/>Port 5001]
-    A --> C[Prediction Agent<br/>Port 5002] 
+    A --> C[Prediction Agent<br/>Port 5002]
     A --> D[Simulation Agent<br/>Port 5003]
     B --> F[(PostgreSQL Database)]
     C --> G[XGBoost ML Model]
     D --> H[Scenario Engine]
     I[Synthetic Data Generator<br/>Port 5006] --> F
-    
+
     style UI fill:#61DAFB
     style NGINX fill:#009639
     style F fill:#336791
@@ -38,6 +40,7 @@ graph TD
 ```
 
 ### Backend Services
+
 - **Supervisor Service** - Coordinates communication between agents and serves API endpoints (port 5000)
 - **Data Agent** - Fetches live machine data from database (port 5001)
 - **Prediction Agent** - Runs XGBoost ML predictions on incoming sensor data (port 5002)
@@ -45,6 +48,7 @@ graph TD
 - **Synthetic Data Generator** - Creates realistic machine data with anomalies for testing (port 5006)
 
 ### Frontend Stack
+
 - **React 18+** - User interface framework
 - **Vite** - Fast build tool and development server
 - **TypeScript** - Type-safe JavaScript development
@@ -52,15 +56,90 @@ graph TD
 - **Node.js** - JavaScript runtime for development and build processes
 
 ### Production Infrastructure
+
 - **Nginx** - Reverse proxy server for API routing and static file serving
 - **PostgreSQL** - Primary database for sensor data and predictions
 
-## Prerequisites
+## 🚀 Quick Start with Docker (Recommended)
 
-### System Requirements
+The fastest way to get the Predictive Maintenance System running is using Docker containers.
+
+### Prerequisites for Docker Setup
+
+- **Docker Engine 20.10+** and **Docker Compose 2.0+**
+- **4GB RAM minimum** (8GB recommended)
+- **Ports 5000-5003** available on your system
+- **Git** for cloning the repository
+
+### Installation Steps
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone <repository-url>
+   cd predictive-maintenance
+   ```
+
+2. **Start the system:**
+
+   ```bash
+   ./docker-start.sh start
+   ```
+
+3. **Test the system:**
+
+   ```bash
+   ./test-containers.sh
+   ```
+
+4. **Access the system:**
+   - Supervisor API: http://localhost:5000
+   - Data Agent: http://localhost:5001
+   - Prediction Agent: http://localhost:5002
+   - Simulation Agent: http://localhost:5003
+
+### Docker Management Commands
+
+```bash
+# Start all services
+./docker-start.sh start
+
+# Check system health
+./docker-start.sh health
+
+# View logs
+./docker-start.sh logs
+
+# Stop all services
+./docker-start.sh stop
+
+# Clean up (removes containers and volumes)
+./docker-start.sh clean
+```
+
+### What's Included
+
+The Docker setup provides:
+
+- ✅ **All agents containerized** with proper dependencies
+- ✅ **PostgreSQL database** with automatic initialization
+- ✅ **Health checks** and service monitoring
+- ✅ **Volume persistence** for data and logs
+- ✅ **Development mode** with hot-reload capabilities
+- ✅ **Production configuration** ready for deployment
+
+For detailed Docker documentation, see [DOCKER_README.md](DOCKER_README.md).
+
+---
+
+## 🛠️ Manual Installation (Alternative)
+
+If you prefer to set up the system manually or need to customize the installation, follow these steps:
+
+### Prerequisites for Manual Setup
 
 - **Operating System**: Linux (preferred), macOS, or Windows with WSL
-- **Hardware**: 
+- **Hardware**:
   - **Minimum**: 4GB RAM, 4 CPU cores, 15GB disk space
   - **Recommended**: 8GB RAM, 6 CPU cores, 30GB disk space
   - **Production**: 16GB RAM, 8 CPU cores, 50GB disk space
@@ -73,7 +152,7 @@ graph TD
     - Node.js 18.x or higher
     - npm 8.x or yarn 1.22.x or higher
     - Nginx 1.18 or higher (for production deployment)
-- **Network**: 
+- **Network**:
   - Backend services use ports 5000-5006
   - Frontend development server typically uses port 3000
   - Production deployment uses ports 80/443 (HTTP/HTTPS)
@@ -82,6 +161,7 @@ graph TD
 ### PostgreSQL Setup
 
 1. Install PostgreSQL:
+
    ```bash
    # For Ubuntu/Debian
    sudo apt update
@@ -96,11 +176,13 @@ graph TD
    ```
 
 2. Create database and user:
+
    ```bash
    sudo -u postgres psql
    ```
 
    Then in the PostgreSQL prompt:
+
    ```sql
    CREATE DATABASE predictive_maintenance;
    CREATE USER predictive WITH PASSWORD 'your_secure_password';
@@ -144,6 +226,7 @@ nano .env  # or use any text editor
 ```
 
 Required configuration in `.env`:
+
 ```
 DB_HOST=localhost
 DB_NAME=predictive_maintenance
@@ -179,6 +262,7 @@ make setup
 ```
 
 This will:
+
 - Install required Python packages
 - Create `.env` file from template (you'll be prompted to edit)
 - Set up database schema
@@ -200,6 +284,7 @@ make run
 ```
 
 This will present a menu to:
+
 - Start all agents
 - Start specific agents
 - View system status
@@ -226,6 +311,7 @@ python synthetic_data_generator.py
 ```
 
 Note: The recommended startup order is:
+
 1. Data Agent
 2. Prediction Agent
 3. Simulation Agent
@@ -237,6 +323,7 @@ Note: The recommended startup order is:
 To confirm all components are running correctly:
 
 1. Check health endpoints:
+
    ```bash
    curl http://localhost:5000/health  # Supervisor
    curl http://localhost:5001/health  # Data Agent
@@ -246,15 +333,17 @@ To confirm all components are running correctly:
    ```
 
 2. Check for live data:
+
    ```bash
    curl http://localhost:5001/live_data
    ```
 
 3. View logs:
+
    ```bash
    # View synthetic data generator logs
    ./view_synthetic_data_log.sh
-   
+
    # View general logs
    ./view_logs.sh
    ```
@@ -271,6 +360,7 @@ make stop-reboot
 ```
 
 This interface allows you to:
+
 - Stop all agents
 - Reboot all agents
 - Stop or reboot individual agents
@@ -293,6 +383,7 @@ The system generates various log files:
 - **Agent-specific logs**: Located in the respective agent directories
 
 To view logs in real-time:
+
 ```bash
 tail -f logs/synthetic_data.log
 ```
@@ -335,19 +426,48 @@ curl -X POST http://localhost:5003/simulate -H "Content-Type: application/json" 
 
 ## Troubleshooting Guide
 
-### Common Issues and Solutions
+### Docker-Related Issues
+
+1. **Container Won't Start**
+
+   - Check Docker is running: `docker info`
+   - Verify ports are available: `netstat -tuln | grep 500[0-3]`
+   - Check container logs: `./docker-start.sh logs [service-name]`
+   - Restart containers: `./docker-start.sh restart`
+
+2. **Database Connection Issues in Containers**
+
+   - Wait for PostgreSQL to initialize: `./docker-start.sh health`
+   - Check database container: `docker-compose logs postgres`
+   - Verify network connectivity: `docker-compose exec supervisor ping postgres`
+
+3. **Volume Mount Issues**
+
+   - Ensure Docker has access to project directory
+   - Check volume permissions: `ls -la logs/ data/`
+   - Restart with clean volumes: `./docker-start.sh clean && ./docker-start.sh start`
+
+4. **Memory/Resource Issues**
+   - Check available resources: `docker stats`
+   - Ensure at least 4GB RAM available
+   - Reduce resource limits in `docker-compose.prod.yml` if needed
+
+### Manual Installation Issues
 
 1. **Database Connection Issues**
+
    - Verify PostgreSQL is running: `pg_isready`
    - Check database credentials in `.env`
    - Ensure the database exists: `psql -U postgres -c "SELECT datname FROM pg_database"`
 
 2. **Agent Won't Start**
+
    - Check if port is already in use: `netstat -tuln | grep PORT_NUMBER`
    - Verify the agent's dependencies are running (e.g., data agent must be running for prediction agent)
    - Check log files for specific error messages
 
 3. **No Predictions Generated**
+
    - Verify prediction agent is running: `curl http://localhost:5002/health`
    - Check if there's data in the `prediction_data` table
    - Manually trigger a prediction to see if there are errors
@@ -376,20 +496,20 @@ curl http://localhost:5001/prediction-data/M001
 
 Key environment variables that can be configured in `.env`:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| DB_HOST | PostgreSQL host | localhost |
-| DB_NAME | Database name | predictive_maintenance |
-| DB_USER | Database username | - |
-| DB_PASSWORD | Database password | - |
-| SUPERVISOR_PORT | Supervisor agent port | 5000 |
-| DATA_AGENT_PORT | Data agent port | 5001 |
-| PREDICTION_AGENT_PORT | Prediction agent port | 5002 |
-| SIMULATION_AGENT_PORT | Simulation agent port | 5003 |
-| SYNTHETIC_DATA_PORT | Synthetic data generator port | 5006 |
-| PREDICTION_HORIZON_DAYS | Days to predict ahead | 30 |
-| DATA_INTERVAL_SECONDS | Seconds between data generation | 30 |
-| PREDICTION_INTERVAL_ITERATIONS | Iterations between writing to prediction_data | 60 |
+| Variable                       | Description                                   | Default                |
+| ------------------------------ | --------------------------------------------- | ---------------------- |
+| DB_HOST                        | PostgreSQL host                               | localhost              |
+| DB_NAME                        | Database name                                 | predictive_maintenance |
+| DB_USER                        | Database username                             | -                      |
+| DB_PASSWORD                    | Database password                             | -                      |
+| SUPERVISOR_PORT                | Supervisor agent port                         | 5000                   |
+| DATA_AGENT_PORT                | Data agent port                               | 5001                   |
+| PREDICTION_AGENT_PORT          | Prediction agent port                         | 5002                   |
+| SIMULATION_AGENT_PORT          | Simulation agent port                         | 5003                   |
+| SYNTHETIC_DATA_PORT            | Synthetic data generator port                 | 5006                   |
+| PREDICTION_HORIZON_DAYS        | Days to predict ahead                         | 30                     |
+| DATA_INTERVAL_SECONDS          | Seconds between data generation               | 30                     |
+| PREDICTION_INTERVAL_ITERATIONS | Iterations between writing to prediction_data | 60                     |
 
 ### Fine-tuning the ML Model
 
@@ -419,36 +539,51 @@ The React frontend (deployed separately) communicates with the backend services 
 ### Production Deployment Considerations
 
 For production deployment:
+
 - **Backend**: Use a process manager like Supervisor or PM2
 - **Frontend**: Build React app with `npm run build` and serve via Nginx
 - **Reverse Proxy**: Configure Nginx to proxy API requests to backend services:
+
   ```nginx
   location /api/ {
       proxy_pass http://localhost:5000/;
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
   }
-  
+
   location / {
       try_files $uri $uri/ /index.html;
       root /var/www/predictive-maintenance;
   }
   ```
+
 - **Database**: Configure proper PostgreSQL backups and security
 - **Security**: Implement proper authentication for API endpoints and HTTPS
 
-#### Docker Deployment (Optional)
+#### Docker Deployment (Recommended)
 
-The system can be containerized using Docker:
+The system is fully containerized and ready for Docker deployment. See the [Quick Start with Docker](#-quick-start-with-docker-recommended) section above for the easiest setup method.
 
-1. Build images:
+For advanced Docker usage:
+
+1. **Development Mode** (with hot-reload):
+
    ```bash
-   docker build -t predictive-maintenance-supervisor -f Dockerfile.supervisor .
-   # Repeat for other agents
+   docker-compose up --build
    ```
 
-2. Create a docker-compose.yml file for orchestration
-3. Run with `docker-compose up`
+2. **Production Mode**:
+
+   ```bash
+   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+   ```
+
+3. **Custom Configuration**:
+   - Modify `docker-compose.yml` for service configuration
+   - Use `docker-compose.override.yml` for development overrides
+   - Use `docker-compose.prod.yml` for production settings
+
+For complete Docker documentation, see [DOCKER_README.md](DOCKER_README.md).
 
 ## API Documentation
 
@@ -498,10 +633,10 @@ print(machine_defaults.json())
 # Example output:
 # {
 #   "machine_id": "M001",
-#   "machine_name": "Precision milling machine", 
+#   "machine_name": "Precision milling machine",
 #   "machine_type": "Milling",
 #   "afr": "12.5",
-#   "rpm": "3200", 
+#   "rpm": "3200",
 #   "current": "30.0",
 #   "pressure": "5.0",
 #   "temperature": "72.5",
@@ -509,7 +644,7 @@ print(machine_defaults.json())
 # }
 
 # Get prediction
-prediction = requests.post("http://localhost:5000/predict", 
+prediction = requests.post("http://localhost:5000/predict",
                           json={"machine_id": "M001"})
 print(prediction.json())
 ```
@@ -528,6 +663,15 @@ print(prediction.json())
 - **inference/** - Machine learning model inference code
 - **logs/** - Log files directory
 - **training/** - Model training code and data
+- **docker/** - Docker configuration files
+  - **postgres/** - PostgreSQL initialization scripts
+- **Docker Files:**
+  - **docker-compose.yml** - Main container orchestration
+  - **docker-compose.override.yml** - Development overrides
+  - **docker-compose.prod.yml** - Production configuration
+  - **Dockerfile.\*** - Individual service containers
+  - **docker-start.sh** - Container management script
+  - **test-containers.sh** - Automated testing script
 - **setup.sh** - System setup script
 - **run.sh** - Script to start the system
 - **stop_reboot.sh** - Script to manage running agents
@@ -544,6 +688,7 @@ print(prediction.json())
 ### Backup Procedures
 
 1. **Database Backup**:
+
    ```bash
    pg_dump -U predictive predictive_maintenance > backup_$(date +%Y%m%d).sql
    ```
@@ -556,11 +701,13 @@ print(prediction.json())
 ### Upgrading the System
 
 1. Pull the latest code:
+
    ```bash
    git pull origin main
    ```
 
 2. Update dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
