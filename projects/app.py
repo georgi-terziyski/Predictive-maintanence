@@ -1,8 +1,11 @@
 from flask import Flask, request, jsonify, Response
 import os
+import ollama
+import pandas as pd
 import subprocess
 import glob
 import shutil
+from werkzeug.utils import secure_filename
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -13,12 +16,51 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 PROJECT_NAME= os.getenv('PROJECT_NAME')
 FINAL_MODELS_DIR = os.path.join(PROJECT_ROOT, PROJECT_NAME, 'projects', 'final_models')
 INFERENCE_DIR = os.path.join(PROJECT_ROOT, PROJECT_NAME, 'inference')
+ALLOWED_EXTENSIONS = {'csv', 'pdf'}
 HISTORY_DIR = os.path.join(INFERENCE_DIR, 'history')
+MODEL_NAME = os.getenv('MODEL_NAME')
+UPLOAD_FOLDER = 'projects/uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
-UPLOAD_FOLDER = 'projects/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+DATACENTER_COLUMNS = {"timestamp", "cpu_usage", "cpu_temp", "ram_usage", "disk_io", "smart_health",
+                      "air_temp", "humidity", "fan_rpm", "ups_load", "pue", "status", "severity", "failure_type", "message"}
+TRAINING_COLUMNS = {"machine_id", "timestamp", "maintenance_action", "afr", "current", "pressure",
+                    "rpm", "temperature", "vibration", "equipment_age (years)", "usage_cycles", "failure_type"}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def extract_columns_from_file(file_path):
+    try:
+        if file_path.endswith(".csv"):
+            df = pd.read_csv(file_path, nrows=1)
+            return list(df.columns)
+        elif file_path.endswith(".pdf"):
+            import fitz
+            text = ""
+            with fitz.open(file_path) as doc:
+                for page in doc:
+                    text += page.get_text()
+            # crude heuristic: words starting with capital letter as columns
+            return [w.strip() for w in text.split() if w.isalpha() and w[0].isupper()]
+        else:
+            return []
+    except:
+        return []
+
+def classify_file_by_columns(columns):
+    cols_lower = set(c.lower() for c in columns)
+    datacenter_overlap = len(cols_lower & DATACENTER_COLUMNS)
+    training_overlap = len(cols_lower & TRAINING_COLUMNS)
+    if datacenter_overlap >= 2:
+        return "DATACENTER"
+    elif training_overlap >= 2:
+        return "TRAINING"
+    else:
+        return "LLM_FALLBACK"
 
 def cleanup_uploads():
     upload_path = os.path.join('.', 'projects', 'uploads', '*')
@@ -28,24 +70,97 @@ def cleanup_uploads():
         except Exception as e:
             print(f"Failed to delete {file}: {e}")
 
+# @app.route('/upload', methods=['POST'])
+# def upload_files():
+#     if not request.files: return jsonify({'error': 'No files uploaded'}), 400
+
+#     saved_files = []
+#     for file in request.files.values():
+#         if file and file.filename.endswith('.csv'):
+#             filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+#             file.save(filepath)
+#             saved_files.append(file.filename)
+
+#             df = pd.read_csv(filepath, nrows=1)
+#             columns = set(df.columns.str.lower())
+#             datacenter_overlap = len(columns & set(c.lower() for c in DATACENTER_COLUMNS))
+#             training_overlap = len(columns & set(c.lower() for c in TRAINING_COLUMNS))
+
+#             if datacenter_overlap >= 2:
+#                 classification = "DATACENTER"
+#             elif training_overlap >= 2:
+#                 classification = "TRAINING"
+#             else:
+#                 prompt = f"Decide if this file is TRAINING or DATACENTER. Columns: {list(df.columns)}. Answer with one word."
+#                 resp = ollama.chat(model=MODEL_NAME, messages=[{"role":"user","content":prompt}])
+#                 classification = resp['message']['content'].strip().upper()
+
+#             # Move file to classified folder
+#             target_folder = os.path.join('projects', classification.lower())
+#             os.makedirs(target_folder, exist_ok=True)
+#             shutil.move(filepath, os.path.join(target_folder, file.filename))
+
+#     if not saved_files: return jsonify({'error': 'No valid CSV files uploaded'}), 400
+#     return jsonify({'success': f'{len(saved_files)} file(s) uploaded and classified.', 'files': saved_files}), 200
+
 @app.route('/upload', methods=['POST'])
-def upload_files():
-    if not request.files:
-        return jsonify({'error': 'No files uploaded'}), 400
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Unsupported file type"}), 400
 
-    saved_files = []
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(file_path)
 
-    for file in request.files.values():
-        if file and file.filename.endswith('.csv'):
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-            file.save(filepath)
-            saved_files.append(file.filename)
+    columns = extract_columns_from_file(file_path)
+    decision = classify_file_by_columns(columns)
 
-    if not saved_files:
-        return jsonify({'error': 'No valid CSV files uploaded'}), 400
+    # LLM fallback if columns don't match
+    if decision == "LLM_FALLBACK":
+        print('in LLM')
+        prompt = f"""
+        You are a file classifier. Decide if this file is for:
+        1. TRAINING (machine maintenance, usage, failure logs),
+        2. DATACENTER (system telemetry like cpu_usage, ram_usage, pue, etc.).
 
-    return jsonify({'success': f'{len(saved_files)} CSV file(s) uploaded', 'files': saved_files}), 200
+        File columns: {columns}
 
+        Answer with exactly one word: TRAINING or DATACENTER.
+        """
+        response = ollama.chat(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        decision = response['message']['content'].strip().upper()
+
+    # --- Branch based on decision ---
+    if decision == "TRAINING":
+        # do training-specific processing
+        # e.g., save for predictive model pipeline
+        return jsonify({
+            "filename": filename,
+            "columns": columns,
+            "classification": decision,
+            "message": "File saved for TRAINING pipeline."
+        })
+
+    elif decision == "DATACENTER":
+        # do datacenter-specific processing
+        # e.g., store for telemetry ingestion
+        return jsonify({
+            "filename": filename,
+            "columns": columns,
+            "classification": decision,
+            "message": "File saved for DATACENTER ingestion."
+        })
+
+    else:
+        return jsonify({"error": "Could not classify file"}), 400
 
 @app.route('/run-script', methods=['POST'])
 def run_script():
