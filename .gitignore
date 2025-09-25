@@ -23,3 +23,4 @@ data/backup/*.csv
 inference/preds/
 
 logs/
+.kiro/
